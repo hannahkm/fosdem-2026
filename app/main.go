@@ -15,8 +15,7 @@ import (
 	"time"
 )
 
-// Input defines the subset of the doe.cue inputs implemented by this
-// program.
+// Input defines the subset of the doe.cue inputs implemented by this program.
 type Input struct {
 	Port      int     `json:"port"`
 	OffCPU    float64 `json:"off_cpu"`

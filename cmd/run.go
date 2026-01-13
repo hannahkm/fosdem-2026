@@ -46,10 +46,12 @@ var cmdRun = &cli.Command{
 			Num:      c.Int("num"),
 			Force:    c.Bool("force"),
 		}
+
 		results, err := Many(ctx, &opts)
 		if err != nil {
 			return err
 		}
+
 		c.Writer.Write([]byte("[\n"))
 		for i, result := range results {
 			if i > 0 {

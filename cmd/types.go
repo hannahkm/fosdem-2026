@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
+	"os/exec"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	docker "github.com/docker/docker/client"
 )
 
 type RunManyOpts struct {
@@ -57,4 +61,38 @@ type LogPayload struct {
 	Count int    `json:"count"`
 	Bytes int64  `json:"bytes"`
 	Logs  []byte `json:"logs"`
+}
+
+type Client struct {
+	*docker.Client
+}
+
+type BuildOpts struct {
+	// Dir points to the directory containing the Dockerfile.
+	Dir string
+	// https://docs.docker.com/reference/cli/docker/buildx/build/#build-arg
+	Args    map[string]string
+	Secrets map[string]string
+}
+
+func NewClient(ctx context.Context) (*Client, error) {
+	c, err := docker.NewClientWithOpts()
+	if err != nil {
+		return nil, err
+	}
+	return &Client{Client: c}, nil
+}
+
+func (c *Client) BuildCommand(ctx context.Context, opts *BuildOpts) *exec.Cmd {
+	args := []string{
+		"build",
+	}
+	for k, v := range opts.Args {
+		args = append(args, "--build-arg", fmt.Sprintf("%s=%s", k, v))
+	}
+	for id, env := range opts.Secrets {
+		args = append(args, "--secret", fmt.Sprintf("id=%s,env=%s", id, env))
+	}
+	args = append(args, opts.Dir)
+	return exec.CommandContext(ctx, "docker", args...)
 }

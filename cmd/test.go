@@ -2,16 +2,23 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/joho/godotenv"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
 	dockerCommand string = "docker-compose"
+	dockerClient  *Client
 	serverPID     *os.Process
 )
 
@@ -29,7 +36,7 @@ func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
 		opts.Scenario = []string{"default", "manual", "OBI", "eBPF", "orchestrion"}
 	}
 
-	err := setupEnvironment(log)
+	err := setupEnvironment(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -65,12 +72,39 @@ func runOne(ctx context.Context, opts *RunManyOpts) (*TestResult, error) {
 		RunnerCPU:  runtime.NumCPU(),
 	}
 
-	// TODO: run tests here
+	cleanup, err := buildGoEnvironment(ctx, opts, opts.Scenario[0])
+	if err != nil {
+		return nil, err
+	}
 
+	// do some health checks
+
+	// generate load
+	out.LoadStart = time.Now()
+	stats := generateLoad(ctx, opts.Scenario[0])
+	out.LoadEnd = time.Now()
+	out.LoadStats, err = stats()
+	if err != nil {
+		return nil, err
+	}
+
+	stopStats := generateLoad(ctx, opts.Scenario[0])
+	out.StopStart = time.Now()
+	err = cleanup(container.StopOptions{Signal: ""})
+	if err != nil {
+		return nil, err
+	}
+	out.StopEnd = time.Now()
+	out.StopStats, err = stopStats()
+	if err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
-func setupEnvironment(log *slog.Logger) error {
+func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
+	log := opts.Logger
+
 	// Check if Docker is installed
 	err := exec.Command("docker", "compose", "version").Run()
 	if cmdExists("docker-compose") {
@@ -79,6 +113,11 @@ func setupEnvironment(log *slog.Logger) error {
 		dockerCommand = "docker compose"
 	} else {
 		return errors.New("Neither `docker-compose` nor `docker compose` was found. Please install one of them.")
+	}
+
+	dockerClient, err = NewClient(ctx)
+	if err != nil {
+		return err
 	}
 
 	// Setup Docker services
@@ -93,6 +132,47 @@ func setupEnvironment(log *slog.Logger) error {
 
 	log.Info("✅ Docker environment setup complete")
 	return nil
+}
+
+func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string) (func(container.StopOptions) error, error) {
+	// Build the Go application
+	log := opts.Logger
+	buildArgs := map[string]string{}
+
+	// First, load all variables from .env file
+	envFile := filepath.Join(".env")
+	if envBuildArgs, err := godotenv.Read(envFile); err == nil {
+		for k, v := range envBuildArgs {
+			buildArgs[k] = v
+		}
+	}
+
+	// build the Dockerfile for the given scenario
+	build := &BuildOpts{
+		Dir:  filepath.Join(getRoot(), "app", scenario),
+		Args: buildArgs,
+		Secrets: map[string]string{
+			"github_token": "GITHUB_TOKEN",
+		},
+	}
+	var eg errgroup.Group
+	eg.Go(func() error {
+		log.Info("⌛ image build starting", "scenario", scenario)
+		start := time.Now()
+		cmdLog := log.With("scenario", scenario)
+		buildCmd := dockerClient.BuildCommand(ctx, build)
+		buildCmd.Env = os.Environ()
+		if err := buildCmd.Run(); err != nil {
+			return err
+		}
+		cmdLog.Info("✅ image build done", "duration", time.Since(start))
+		return nil
+	})
+
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, scenario, opts)
+	}
+	return cleanup, nil
 }
 
 func setupOTelEnvironment(log *slog.Logger) error {
@@ -157,4 +237,64 @@ func run(cmd string, args ...string) error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
+}
+
+func getRoot() string {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("Failed to get caller information")
+	}
+	return filepath.Join(filepath.Dir(filename), "..", "..")
+}
+
+func generateLoad(ctx context.Context, containerID string) func() ([]*container.StatsResponse, error) {
+	resultCh := make(chan []*container.StatsResponse, 1)
+	firstCh := make(chan struct{})
+	stopCh := make(chan struct{})
+	var err error
+	go func() {
+		snapshots := []*container.StatsResponse{}
+		next := time.Now()
+		for running := true; running; {
+			select {
+			case <-stopCh:
+				// capture one last stats snapshot before exiting
+				running = false
+			case <-ctx.Done():
+				running = false
+			case <-time.After(time.Until(next)):
+			}
+			var stats container.StatsResponse
+			stats, err = getContainerStats(ctx, containerID)
+			snapshots = append(snapshots, &stats)
+			next = next.Add(100 * time.Millisecond)
+			select {
+			case <-firstCh:
+			default:
+				close(firstCh)
+			}
+		}
+		resultCh <- snapshots
+	}()
+
+	// Wait for the first stats snapshot to be taken before returning.
+	<-firstCh
+
+	return func() ([]*container.StatsResponse, error) {
+		stopCh <- struct{}{}
+		res := <-resultCh
+		return res, err
+	}
+}
+
+func getContainerStats(ctx context.Context, containerID string) (container.StatsResponse, error) {
+	statsReader, err := dockerClient.ContainerStatsOneShot(ctx, containerID)
+	if err != nil {
+		return container.StatsResponse{}, err
+	}
+	var stats container.StatsResponse
+	if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
+		return container.StatsResponse{}, err
+	}
+	return stats, nil
 }
