@@ -13,6 +13,7 @@ import (
 
 type RunManyOpts struct {
 	Logger   *slog.Logger
+	Inputs   *Input
 	Scenario []string
 	Force    bool
 	Num      int
@@ -73,6 +74,75 @@ type BuildOpts struct {
 	// https://docs.docker.com/reference/cli/docker/buildx/build/#build-arg
 	Args    map[string]string
 	Secrets map[string]string
+}
+
+type Input struct {
+	// Hash of all inputs except for the hash itself.
+	Hash string `json:"hash"`
+
+	// Archetype used to generate default values (if any). For example, "idle", "throughput", "latency", or "enterprise".
+	Archetype string `json:"archetype,omitempty"`
+
+	// RuntimeVersion to test. For example, "1.24".
+	RuntimeVersion string `json:"runtime_version"`
+
+	// Workers is the number of workers to use. The exact meaning of this
+	// depends on the language. For example, in Go it's GOMAXPROCS. In node it's
+	// the number of cluster processes to spawn. The value of workers defaults
+	// to the number of logical CPUs on the machine.
+	Workers int `json:"workers"`
+
+	// LoopsCPU (in seconds) is the amount of CPU time to spend in a tight for
+	// loop in the request handler for each request. If set, the value of Loops
+	// will be ignored and overwritten with an auto-calibrated value.
+	LoopsCPU float64 `json:"loops_cpu"`
+
+	// LoopsNum is the number of iterations to perform in a tight loop.
+	LoopsNum int `json:"loops_num"`
+
+	// AllocsCPU (in seconds) is the amount of CPU time to spend in a for loop
+	// doing allocations of allocs_size bytes in the request handler for each
+	// request. The allocations are kept alive for the duration of the request.
+	// If set, the value of AllocsNum will be ignored and overwritten with an
+	// auto-calibrated value.
+	AllocsCPU float64 `json:"allocs_cpu"`
+
+	// AllocsNum is the number of allocations to perform in a tight loop.
+	AllocsNum int `json:"allocs_num"`
+
+	// AllocsSize is the size of the allocations to perform in a tight loop.
+	AllocsSize int `json:"allocs_size"`
+
+	// Exceptions controls whether to throw an exception or not in the request handler.
+	Exceptions bool `json:"exceptions"`
+
+	// OffCPU time (in seconds) to spend in the request handler for each request.
+	OffCPU float64 `json:"off_cpu"`
+
+	// Recursive referes to the Stack: should it be unique functions or a recursive function call.
+	Recursive bool `json:"recursive"`
+
+	// Flush controls whether the application is asked to gracefully shut down
+	// and flush traces and profiles. When disabled, the application is killed
+	// via SIGKILL and buffered traces and profiles are discarded.
+	Flush bool `json:"flush"`
+
+	// Port to listen on for the application.
+	Port int `json:"port"`
+
+	// RPS is the number of requests per second to generate in an open loop.
+	// This option is mutually exclusive with Concurrency.
+	RPS int `json:"rps"`
+
+	// Clients is the number of goroutines that will generated requests in a
+	// closed loop. This option is mutually exclusive with RPS.
+	Clients int `json:"clients"`
+
+	// Timeout for each request in seconds.
+	Timeout float64 `json:"timeout"`
+
+	// Duration for which to put the application under load in seconds.
+	Duration float64 `json:"duration"`
 }
 
 func NewClient(ctx context.Context) (*Client, error) {

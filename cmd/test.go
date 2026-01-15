@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,7 +48,7 @@ func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
 		failures := 0
 		for i := range opts.Num {
 			log.Info("Running test run", "run", i+1, "of", opts.Num)
-			r, err := runOne(ctx, opts)
+			r, err := runOne(ctx, opts, s)
 			if err != nil {
 				log.Warn("⚠️ Test run failed", "error", err)
 				failures++
@@ -58,7 +61,7 @@ func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
 	return results, nil
 }
 
-func runOne(ctx context.Context, opts *RunManyOpts) (*TestResult, error) {
+func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResult, error) {
 	log := opts.Logger
 	log.Info("Starting test run")
 	start := time.Now()
@@ -71,26 +74,64 @@ func runOne(ctx context.Context, opts *RunManyOpts) (*TestResult, error) {
 		RunnerArch: runtime.GOARCH,
 		RunnerCPU:  runtime.NumCPU(),
 	}
+	inputs := opts.Inputs
 
-	cleanup, err := buildGoEnvironment(ctx, opts, opts.Scenario[0])
+	cleanup, err := buildGoEnvironment(ctx, opts, scenario)
 	if err != nil {
 		return nil, err
 	}
 
-	// do some health checks
+	// Wait for the app server to be healthy
+	log.Info("⌛ app server waiting to be healthy")
+	waitStart := time.Now()
+	if err := waitForAppHealth(ctx, inputs.Port); err != nil {
+		return nil, err
+	}
+	log.Info("✅ app server is healthy", "duration", time.Since(waitStart))
+	out.AppReady = time.Now()
 
 	// generate load
 	out.LoadStart = time.Now()
-	stats := generateLoad(ctx, opts.Scenario[0])
+	stats := startStats(ctx, scenario)
+
+	// Send requests
+	client := &http.Client{
+		Timeout: time.Duration(inputs.Timeout * 1e9),
+		Transport: &http.Transport{
+			Proxy:               http.ProxyFromEnvironment,
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: false},
+			MaxIdleConnsPerHost: inputs.RPS,
+		},
+	}
+	requests, err := Generate(ctx, &Config{
+		Client:      client,
+		Log:         log,
+		URL:         fmt.Sprintf("http://localhost:%d/load", inputs.Port),
+		RPS:         inputs.RPS,
+		Clients:     inputs.Clients,
+		Duration:    inputs.Duration,
+		Endpoints:   inputs.Endpoints,
+		ExpectError: inputs.Exceptions,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out.Requests = requests
+
 	out.LoadEnd = time.Now()
 	out.LoadStats, err = stats()
 	if err != nil {
 		return nil, err
 	}
 
-	stopStats := generateLoad(ctx, opts.Scenario[0])
+	stopStats := startStats(ctx, scenario)
+
 	out.StopStart = time.Now()
-	err = cleanup(container.StopOptions{Signal: ""})
+	signal := ""
+	if !inputs.Flush {
+		signal = "SIGKILL"
+	}
+	err = cleanup(container.StopOptions{Signal: signal})
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +141,44 @@ func runOne(ctx context.Context, opts *RunManyOpts) (*TestResult, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func waitForAppHealth(ctx context.Context, port int) error {
+	healthCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	for {
+		select {
+		case <-healthCtx.Done():
+			return context.Cause(healthCtx)
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		if healthy, _ := httpHealthCheck(healthCtx, port); healthy {
+			break
+		}
+	}
+	return nil
+}
+
+func httpHealthCheck(ctx context.Context, port int) (bool, error) {
+	client := &http.Client{
+		Timeout: 1 * time.Second,
+	}
+	url := fmt.Sprintf("http://localhost:%d/health", port)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK, nil
 }
 
 func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
@@ -247,7 +326,7 @@ func getRoot() string {
 	return filepath.Join(filepath.Dir(filename), "..", "..")
 }
 
-func generateLoad(ctx context.Context, containerID string) func() ([]*container.StatsResponse, error) {
+func startStats(ctx context.Context, containerID string) func() ([]*container.StatsResponse, error) {
 	resultCh := make(chan []*container.StatsResponse, 1)
 	firstCh := make(chan struct{})
 	stopCh := make(chan struct{})

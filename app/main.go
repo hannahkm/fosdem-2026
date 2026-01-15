@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"slices"
 	"syscall"
 	"time"
 )
@@ -65,7 +64,6 @@ func main() {
 
 	mux.HandleFunc("/health", healthHandler())
 	mux.HandleFunc("/load/1", loadHandler(&inputs))
-	mux.HandleFunc("/calibrate", calibrateHandler(&inputs))
 
 	// Start the HTTP server using the port specified in the inputs.
 	addr := fmt.Sprintf(":%d", inputs.Port)
@@ -110,45 +108,6 @@ func loadHandler(c *Input) http.HandlerFunc {
 		runtime.KeepAlive(a)
 		io.WriteString(w, "Hello World\n")
 	}
-}
-
-func calibrateHandler(i *Input) http.HandlerFunc {
-	type response struct {
-		LoopsNum  int `json:"loops_num"`
-		AllocsNum int `json:"allocs_num"`
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		loopsNum := calibrate(i.LoopsCPU, cpuLoop)
-		allocsNum := calibrate(i.AllocsCPU, func(iterations int) {
-			a := allocsLoop(iterations, i.AllocSize)
-			runtime.KeepAlive(a)
-		})
-		json.NewEncoder(w).Encode(response{LoopsNum: loopsNum, AllocsNum: allocsNum})
-	}
-}
-
-func calibrate(cpu float64, fn func(int)) int {
-	n := 1
-	for {
-		start := time.Now()
-		fn(n)
-		dt := time.Since(start)
-		if dt.Seconds() > cpu {
-			break
-		}
-		n *= 2
-	}
-	durations := make([]time.Duration, 10)
-	for i := range durations {
-		start := time.Now()
-		fn(n)
-		durations[i] = time.Since(start)
-	}
-	slices.Sort(durations)
-	median := durations[len(durations)/2]
-	iterationsPerSecond := float64(n) / median.Seconds()
-	loops := int(cpu * iterationsPerSecond)
-	return loops
 }
 
 // cpuLoop performs a computationally expensive loop that scales with iterations
