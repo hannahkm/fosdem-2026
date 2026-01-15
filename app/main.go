@@ -54,16 +54,7 @@ func main() {
 		runtime.GOMAXPROCS(inputs.Workers)
 	}
 
-	// Create a new ServeMux and register a handler.
-	var mux interface {
-		HandleFunc(string, func(http.ResponseWriter, *http.Request))
-		http.Handler
-	}
-
-	mux = http.NewServeMux()
-
-	mux.HandleFunc("/health", healthHandler())
-	mux.HandleFunc("/load/1", loadHandler(&inputs))
+	mux := setupHandlers(&inputs)
 
 	// Start the HTTP server using the port specified in the inputs.
 	addr := fmt.Sprintf(":%d", inputs.Port)
@@ -94,20 +85,25 @@ func main() {
 	log.Println("Server exiting")
 }
 
-func healthHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "OK\n")
-	}
+func setupHandlers(inputs *Input) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", HealthHandler)
+	mux.HandleFunc("/load/1", inputs.LoadHandler)
+	return mux
 }
 
-func loadHandler(c *Input) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		a := allocsLoop(c.AllocsNum, c.AllocSize)
-		simulateOffCPU(c.OffCPU)
-		cpuLoop(c.LoopsNum)
-		runtime.KeepAlive(a)
-		io.WriteString(w, "Hello World\n")
-	}
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "OK\n")
+
+}
+
+func (c *Input) LoadHandler(w http.ResponseWriter, r *http.Request) {
+	a := allocsLoop(c.AllocsNum, c.AllocSize)
+	simulateOffCPU(c.OffCPU)
+	cpuLoop(c.LoopsNum)
+	runtime.KeepAlive(a)
+	io.WriteString(w, "Hello World\n")
+
 }
 
 // cpuLoop performs a computationally expensive loop that scales with iterations
