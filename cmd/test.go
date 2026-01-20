@@ -27,6 +27,7 @@ var (
 	dockerCommand string = "docker-compose"
 	dockerClient  *Client
 	serverPID     *os.Process
+	allScenarios  = []string{"default", "manual", "OBI", "eBPF", "orchestrion"}
 )
 
 func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
@@ -40,7 +41,7 @@ func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
 	}
 
 	if opts.Scenario[0] == "all" {
-		opts.Scenario = []string{"default", "manual", "OBI", "eBPF", "orchestrion"}
+		opts.Scenario = allScenarios
 	}
 
 	err := setupEnvironment(ctx, opts)
@@ -366,6 +367,12 @@ func cleanup(log *slog.Logger) error {
 
 	run(dockerCommand, "down", "--remove-orphans")
 
+	// Make sure that all containers are stopped and removed, or else re-running
+	// will cause conflicts with existing container names.
+	for _, s := range allScenarios {
+		_ = runSilently("docker", "rm", "-f", s)
+	}
+
 	// Kill ports
 	if serverPID != nil {
 		serverPID.Kill()
@@ -379,6 +386,11 @@ func cleanup(log *slog.Logger) error {
 func cmdExists(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+func runSilently(cmd string, args ...string) error {
+	c := exec.Command(cmd, args...)
+	return c.Run()
 }
 
 func run(cmd string, args ...string) error {
