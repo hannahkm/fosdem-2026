@@ -48,7 +48,8 @@ var CmdRun = &cli.Command{
 			Num:      c.Int("num"),
 			Force:    c.Bool("force"),
 			Inputs: &Input{
-				Port: 8080,
+				Port:           8080,
+				RuntimeVersion: "1.25.5",
 			},
 		}
 

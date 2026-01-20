@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -153,9 +154,11 @@ func NewClient(ctx context.Context) (*Client, error) {
 	return &Client{Client: c}, nil
 }
 
-func (c *Client) BuildCommand(ctx context.Context, opts *BuildOpts) *exec.Cmd {
+func (c *Client) BuildCommand(ctx context.Context, opts *BuildOpts, scenario string) *exec.Cmd {
 	args := []string{
 		"build",
+		"-t", scenario,
+		"-f", filepath.Join(opts.Dir, "Dockerfile"),
 	}
 	for k, v := range opts.Args {
 		args = append(args, "--build-arg", fmt.Sprintf("%s=%s", k, v))
@@ -163,6 +166,6 @@ func (c *Client) BuildCommand(ctx context.Context, opts *BuildOpts) *exec.Cmd {
 	for id, env := range opts.Secrets {
 		args = append(args, "--secret", fmt.Sprintf("id=%s,env=%s", id, env))
 	}
-	args = append(args, opts.Dir)
+	args = append(args, getRoot())
 	return exec.CommandContext(ctx, "docker", args...)
 }

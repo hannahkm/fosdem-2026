@@ -12,9 +12,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/joho/godotenv"
 	"golang.org/x/sync/errgroup"
 )
@@ -41,6 +43,7 @@ func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
 
 	err := setupEnvironment(ctx, opts)
 	if err != nil {
+		log.Debug("Failed to setup environment", "error", err)
 		return nil, err
 	}
 	for _, s := range opts.Scenario {
@@ -78,6 +81,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 
 	cleanup, err := buildGoEnvironment(ctx, opts, scenario)
 	if err != nil {
+		log.Debug("Failed to build Go environment", "error", err)
 		return nil, err
 	}
 
@@ -85,6 +89,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	log.Info("⌛ app server waiting to be healthy")
 	waitStart := time.Now()
 	if err := waitForAppHealth(ctx, inputs.Port); err != nil {
+		log.Debug("Timed out waiting for app server to be healthy", "error", err)
 		return nil, err
 	}
 	log.Info("✅ app server is healthy", "duration", time.Since(waitStart))
@@ -113,6 +118,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		ExpectError: inputs.Exceptions,
 	})
 	if err != nil {
+		log.Debug("Failed to generate requests", "error", err)
 		return nil, err
 	}
 	out.Requests = requests
@@ -120,6 +126,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	out.LoadEnd = time.Now()
 	out.LoadStats, err = stats()
 	if err != nil {
+		log.Debug("Failed to get load stats", "error", err)
 		return nil, err
 	}
 
@@ -132,11 +139,13 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	}
 	err = cleanup(container.StopOptions{Signal: signal})
 	if err != nil {
+		log.Debug("Failed to cleanup", "error", err)
 		return nil, err
 	}
 	out.StopEnd = time.Now()
 	out.StopStats, err = stopStats()
 	if err != nil {
+		log.Debug("Failed to get end stats", "error", err)
 		return nil, err
 	}
 	return out, nil
@@ -195,6 +204,7 @@ func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
 
 	dockerClient, err = NewClient(ctx)
 	if err != nil {
+		log.Debug("Failed to create Docker client", "error", err)
 		return err
 	}
 
@@ -225,27 +235,73 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		}
 	}
 
-	// build the Dockerfile for the given scenario
+	if opts.Inputs.RuntimeVersion != "" {
+		buildArgs["runtime_version"] = opts.Inputs.RuntimeVersion
+	} else {
+		buildArgs["runtime_version"] = "1.25.5"
+		log.Warn("no runtime version specified, using default", "version", "1.25.5")
+	}
+
+	// Build the Dockerfile for the given scenario
 	build := &BuildOpts{
-		Dir:  filepath.Join(getRoot(), "app", scenario),
-		Args: buildArgs,
-		Secrets: map[string]string{
-			"github_token": "GITHUB_TOKEN",
-		},
+		Dir:     filepath.Join(getRoot(), "app", scenario),
+		Args:    buildArgs,
+		Secrets: map[string]string{},
 	}
 	var eg errgroup.Group
 	eg.Go(func() error {
 		log.Info("⌛ image build starting", "scenario", scenario)
 		start := time.Now()
 		cmdLog := log.With("scenario", scenario)
-		buildCmd := dockerClient.BuildCommand(ctx, build)
+		buildCmd := dockerClient.BuildCommand(ctx, build, scenario)
+		buildCmd.Stdout = os.Stdout
+		buildCmd.Stderr = os.Stderr
+		log.Info("executing", "command", buildCmd.String())
 		buildCmd.Env = os.Environ()
 		if err := buildCmd.Run(); err != nil {
+			log.Debug("Failed to build image", "error", err)
 			return err
 		}
 		cmdLog.Info("✅ image build done", "duration", time.Since(start))
 		return nil
 	})
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Create the container
+	port := opts.Inputs.Port
+	hostCfg := &container.HostConfig{
+		PortBindings: nat.PortMap{
+			nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: strconv.Itoa(port)}},
+		},
+	}
+
+	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: scenario,
+		Cmd:   []string{"/app/inputs.json"},
+		ExposedPorts: nat.PortSet{
+			nat.Port(fmt.Sprintf("%d/tcp", port)): struct{}{},
+		},
+	}, hostCfg, nil, nil, scenario)
+
+	if err != nil {
+		log.Debug("Failed to create container", "error", err)
+		return nil, err
+	}
+
+	// Start the container
+	if err := dockerClient.ContainerStart(ctx, scenario, container.StartOptions{}); err != nil {
+		log.Debug("Failed to start container", "error", err)
+		return nil, err
+	}
+
+	if err := dockerClient.ContainerStart(ctx, scenario, container.StartOptions{}); err != nil {
+		log.Debug("Failed to start container", "error", err)
+		return nil, err
+	}
+	log.Info("✅ app build done")
 
 	cleanup := func(opts container.StopOptions) error {
 		return dockerClient.ContainerStop(ctx, scenario, opts)
@@ -292,7 +348,7 @@ func setupEBPFEnvironment(log *slog.Logger) error {
 // kill any local services (ie Grafana)
 func cleanup(log *slog.Logger) error {
 	log.Info("🧹 Cleaning up...")
-	// Cleanup Docker services
+
 	run(dockerCommand, "down", "--remove-orphans")
 
 	// Kill ports
@@ -322,7 +378,7 @@ func getRoot() string {
 	if !ok {
 		panic("Failed to get caller information")
 	}
-	return filepath.Join(filepath.Dir(filename), "..", "..")
+	return filepath.Join(filepath.Dir(filename), "..")
 }
 
 func startStats(ctx context.Context, containerID string) func() ([]*container.StatsResponse, error) {
