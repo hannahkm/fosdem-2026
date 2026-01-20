@@ -110,7 +110,6 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		RPS:         inputs.RPS,
 		Clients:     inputs.Clients,
 		Duration:    inputs.Duration,
-		Endpoints:   inputs.Endpoints,
 		ExpectError: inputs.Exceptions,
 	})
 	if err != nil {

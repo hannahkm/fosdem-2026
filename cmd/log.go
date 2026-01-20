@@ -20,6 +20,8 @@ type LogWriter struct {
 	prefix string
 }
 
+type loggerKey struct{}
+
 func New(w *os.File) (*slog.Logger, *slog.LevelVar) {
 	level := &slog.LevelVar{}
 	level.Set(slog.LevelInfo)
@@ -31,8 +33,15 @@ func New(w *os.File) (*slog.Logger, *slog.LevelVar) {
 	return log, level
 }
 
-func NewLogger(ctx context.Context) *slog.Logger {
-	return ctx.Value("logger").(*slog.Logger)
+func WithLogger(ctx context.Context, log *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey{}, log)
+}
+
+func NewLogger(ctx context.Context) (*slog.Logger, context.CancelCauseFunc) {
+	log, _ := New(os.Stdout)
+	ctx = WithLogger(ctx, log)
+	ctx, cancel := context.WithCancelCause(ctx)
+	return ctx.Value(loggerKey{}).(*slog.Logger), cancel
 }
 
 func NewLogWriter(ctx context.Context, logger *slog.Logger, level slog.Level, prefix string) *LogWriter {

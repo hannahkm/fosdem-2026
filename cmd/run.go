@@ -7,7 +7,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var cmdRun = &cli.Command{
+var CmdRun = &cli.Command{
 	Name:    "run",
 	Aliases: []string{"r"},
 	Usage:   "runs one or more experiments",
@@ -40,11 +40,16 @@ var cmdRun = &cli.Command{
 		},
 	},
 	Action: func(ctx context.Context, c *cli.Command) error {
+		log, cancel := NewLogger(ctx)
+		defer cancel(nil)
 		opts := RunManyOpts{
-			Logger:   NewLogger(ctx),
+			Logger:   log,
 			Scenario: []string{c.String("scenario")},
 			Num:      c.Int("num"),
 			Force:    c.Bool("force"),
+			Inputs: &Input{
+				Port: 8080,
+			},
 		}
 
 		results, err := Many(ctx, &opts)
