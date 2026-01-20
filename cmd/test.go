@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -291,12 +293,25 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		return nil, err
 	}
 
-	// Start the container
-	if err := dockerClient.ContainerStart(ctx, scenario, container.StartOptions{}); err != nil {
-		log.Debug("Failed to start container", "error", err)
+	// Handle inputs.json before starting the container
+	data, err := json.MarshalIndent(opts.Inputs, "", "  ")
+	if err != nil {
 		return nil, err
 	}
 
+	buf := new(bytes.Buffer)
+	tw := tar.NewWriter(buf)
+	tw.WriteHeader(&tar.Header{
+		Name: "inputs.json",
+		Mode: 0644,
+		Size: int64(len(data)),
+	})
+	tw.Write(data)
+	tw.Close()
+
+	dockerClient.CopyToContainer(ctx, scenario, "/app", buf, container.CopyToContainerOptions{})
+
+	// Start the container
 	if err := dockerClient.ContainerStart(ctx, scenario, container.StartOptions{}); err != nil {
 		log.Debug("Failed to start container", "error", err)
 		return nil, err
@@ -357,7 +372,7 @@ func cleanup(log *slog.Logger) error {
 		serverPID.Wait()
 	}
 
-	log.Info("Clean up complete! ✨")
+	log.Info("✅ Clean up complete! ✨")
 	return nil
 }
 
