@@ -24,10 +24,11 @@ import (
 )
 
 var (
-	dockerCommand string = "docker-compose"
-	dockerClient  *Client
-	serverPID     *os.Process
-	allScenarios  = []string{"default", "manual", "OBI", "eBPF", "orchestrion"}
+	dockerCommand  string = "docker-compose"
+	dockerClient   *Client
+	serverPID      *os.Process
+	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion"}
+	containerNames = []string{"go-auto", "go-obi"}
 )
 
 func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
@@ -81,6 +82,27 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		RunnerCPU:  runtime.NumCPU(),
 	}
 	inputs := opts.Inputs
+
+	if scenario != "default" {
+		err := setupOTelEnvironment(log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if scenario == "obi" {
+		err := setupOBIEnvironment(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if scenario == "ebpf" {
+		err := setupEBPFEnvironment(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	cleanup, err := buildGoEnvironment(ctx, opts, scenario)
 	if err != nil {
@@ -352,11 +374,66 @@ func setupOrchestrion(log *slog.Logger) error {
 	return nil
 }
 
-func setupEBPFEnvironment(log *slog.Logger) error {
+func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) error {
 	// Setup eBPF environment
-	run(dockerCommand, "--profile", "with-auto-instrumentation", "up", "-d", "--remove-orphans")
+	log := opts.Logger
+
+	log.Info("⌛ Pulling eBPF image...")
+	if err := run("docker", "pull", "otel/autoinstrumentation-go"); err != nil {
+		log.Error("❌ Failed to pull eBPF image", "error", err)
+		return err
+	}
+
+	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: "otel/autoinstrumentation-go",
+		Env: []string{
+			"OTEL_GO_AUTO_TARGET_EXE=/app/main",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318",
+			"OTEL_SERVICE_NAME=fosdem-ebpf",
+			"OTEL_PROPAGATORS=tracecontext,baggage",
+		},
+	}, &container.HostConfig{
+		PidMode:    container.PidMode("container:ebpf"),
+		Privileged: true,
+		Binds:      []string{"/proc:/host/proc"},
+	}, nil, nil, "go-auto")
+
+	if err != nil {
+		log.Error("❌ Failed to setup eBPF environment", "error", err)
+		return err
+	}
 
 	log.Info("✅ eBPF environment setup complete")
+	return nil
+}
+
+func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) error {
+	log := opts.Logger
+
+	log.Info("⌛ Pulling OBI image...")
+	if err := run("docker", "pull", "otel/ebpf-instrument:main"); err != nil {
+		log.Error("❌ Failed to pull OBI image", "error", err)
+		return err
+	}
+
+	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: "otel/ebpf-instrument:main",
+		Env: []string{
+			"OTEL_EBPF_TRACE_PRINTER=text",
+			"OTEL_EBPF_OPEN_PORT=8443",
+			"OTEL_SERVICE_NAME=fosdem-obi",
+		},
+	}, &container.HostConfig{
+		PidMode:    container.PidMode("container:obi"),
+		Privileged: true,
+		Binds:      []string{"/proc:/host/proc"},
+	}, nil, nil, "go-obi")
+
+	if err != nil {
+		log.Error("❌ Failed to setup OBI environment", "error", err)
+		return err
+	}
+	log.Info("✅ OBI environment setup complete")
 	return nil
 }
 
@@ -370,6 +447,10 @@ func cleanup(log *slog.Logger) error {
 	// Make sure that all containers are stopped and removed, or else re-running
 	// will cause conflicts with existing container names.
 	for _, s := range allScenarios {
+		_ = runSilently("docker", "rm", "-f", s)
+	}
+
+	for _, s := range containerNames {
 		_ = runSilently("docker", "rm", "-f", s)
 	}
 
@@ -389,11 +470,19 @@ func cmdExists(name string) bool {
 }
 
 func runSilently(cmd string, args ...string) error {
+	if cmd == "docker compose" {
+		cmd = "docker"
+		args = append([]string{"compose"}, args...)
+	}
 	c := exec.Command(cmd, args...)
 	return c.Run()
 }
 
 func run(cmd string, args ...string) error {
+	if cmd == "docker compose" {
+		cmd = "docker"
+		args = append([]string{"compose"}, args...)
+	}
 	c := exec.Command(cmd, args...)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr

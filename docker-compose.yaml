@@ -6,8 +6,8 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=gopherconus
-      - DOCKER_INFLUXDB_INIT_ORG=gopherconus
+      - DOCKER_INFLUXDB_INIT_PASSWORD=fosdem
+      - DOCKER_INFLUXDB_INIT_ORG=fosdem
       - DOCKER_INFLUXDB_INIT_BUCKET=k6testing
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=13NSkxbvAnGSbQIHAzWAQFsNVDXWHD94-NG2taWgmFCJ1FiLiFjjwNe_Vg37sKUc2Cn_kSWYMCR0egexhp3PRg==
 
@@ -30,7 +30,7 @@ services:
     environment:
       - BASE_URL=${BASE_URL:-http://host.docker.internal:8080}
       - INSTRUMENTATION=${INSTRUMENTATION:-default}
-      - K6_INFLUXDB_ORGANIZATION=gopherconus
+      - K6_INFLUXDB_ORGANIZATION=fosdem2026
       - K6_INFLUXDB_BUCKET=k6testing
       - K6_INFLUXDB_TOKEN=13NSkxbvAnGSbQIHAzWAQFsNVDXWHD94-NG2taWgmFCJ1FiLiFjjwNe_Vg37sKUc2Cn_kSWYMCR0egexhp3PRg==
       - K6_INFLUXDB_ADDR=http://host.docker.internal:8086/k6testing
@@ -71,7 +71,8 @@ services:
       - PROMETHEUS_QUERY_DURATION_UNIT=${PROMETHEUS_QUERY_DURATION_UNIT:-}
       - PROMETHEUS_QUERY_NORMALIZE_CALLS=true
       - PROMETHEUS_QUERY_NORMALIZE_DURATION=true
-    ports: # Some ports are optional or deprecated, but we still let them be here as it's a general snippet
+    ports:
+      # Some ports are optional or deprecated, but we still let them be here as it's a general snippet
       - "5775:5775/udp" # agent accept zipkin.thrift over compact thrift protocol (deprecated, used by legacy clients only)
       - "6831:6831/udp" # agent accept jaeger.thrift over compact thrift protocol
       - "6832:6832/udp" # agent accept jaeger.thrift over binary thrift protocol
@@ -85,7 +86,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib
-    command: ["--config=/etc/otel-collector-config.yaml"]
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
@@ -102,29 +103,6 @@ services:
       - influxdb
       - jaeger
       - prometheus
-
-  go-auto:
-    image: otel/autoinstrumentation-go
-    privileged: true
-    pid: "host"
-    network_mode: "host"
-    environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-      - OTEL_GO_AUTO_TARGET_EXE=${PWD}/gopherconus-server
-      - OTEL_SERVICE_NAME=gopherconus-ebpf
-      - OTEL_PROPAGATORS=tracecontext,baggage
-      - OTEL_GO_AUTO_GLOBAL=false
-      - OTEL_GO_AUTO_INCLUDE_DB_STATEMENT=true
-      - OTEL_GO_AUTO_PARSE_DB_STATEMENT=true
-      - OTEL_LOG_LEVEL=debug
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_EXPORTER_OTLP_INSECURE=true
-    volumes:
-      - /proc:/host/proc
-    profiles:
-      - with-auto-instrumentation
-    depends_on:
-      - otel-collector
 
 volumes:
   postgres_data:
