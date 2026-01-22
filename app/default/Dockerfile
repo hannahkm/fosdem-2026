@@ -7,8 +7,10 @@ RUN go mod init default
 
 COPY app/main.go ./
 COPY app/default/binaries/ /binaries/
+COPY entry.sh ./
+
 
 RUN go mod tidy
 RUN go build -o main .
 
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./entry.sh"]

@@ -5,10 +5,11 @@ WORKDIR /app
 
 RUN go mod init manual
 
-COPY app/main.go ./
+COPY app/manual/main.go ./
 COPY app/manual/binaries/ /binaries/
+COPY entry.sh ./
 
 RUN go mod tidy
 RUN go build -o main .
 
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./entry.sh"]

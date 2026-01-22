@@ -9,10 +9,11 @@ COPY app/main.go ./
 COPY app/orchestrion/binaries/ /binaries/
 COPY app/orchestrion/orchestrion.yml ./
 COPY orchestrion.tool.go ./
+COPY entry.sh ./
 
 RUN go install github.com/DataDog/orchestrion@latest
 
 RUN go mod tidy
 RUN GOFLAGS="-mod=mod" orchestrion go build -o main .
 
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./entry.sh"]

@@ -7,8 +7,9 @@ RUN go mod init obi
 
 COPY app/main.go ./
 COPY app/obi/binaries/ /binaries/
+COPY entry.sh ./
 
 RUN go mod tidy
 RUN go build -o main .
 
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./entry.sh"]
