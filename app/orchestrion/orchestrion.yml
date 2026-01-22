@@ -15,13 +15,39 @@ aspects:
     advice:
       - inject-declarations:
           imports:
-            handlers: github.com/hannahkm/gopherconus-2025/handlers
             context: context
+            trace: go.opentelemetry.io/otel/sdk/trace
+            otlptracehttp: go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+            resource: go.opentelemetry.io/otel/sdk/resource
+            semconv: go.opentelemetry.io/otel/semconv/v1.20.0
           template: |-
             var otelShutdown func(context.Context) error
             var provider *trace.TracerProvider
             
             func init() {
+              ctx := context.Background()
+
+              endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+              if endpoint == "" {
+                endpoint = "localhost:4318"
+              }
+
+              exporter, err := otlptracehttp.New(ctx,
+                otlptracehttp.WithInsecure(),
+                otlptracehttp.WithEndpoint("localhost:4318"),
+                otlptracehttp.WithTimeout(30*time.Second),
+              )
+              if err != nil {
+                os.Exit(1)
+              }
+
+              res, err := resource.New(ctx,
+                resource.WithAttributes(
+                  semconv.ServiceName("orchestrion"),
+                  semconv.ServiceVersion("1.0.0"),
+                ),
+              )
+
               provider = trace.NewTracerProvider(
                 trace.WithBatcher(exporter,
                   trace.WithBatchTimeout(5*time.Second),
@@ -50,12 +76,12 @@ aspects:
       function:
         - signature-contains:
             returns:
-              - *net/http.Handler
-              - *http.HandlerFunc
+              - "*http.Handler"
+              - "*http.HandlerFunc"
     advice:
       prepend-statements:
         imports:
-          - otel: go.opentelemetry.io/otel
+          otel: go.opentelemetry.io/otel
         template: |-
           {{ $r := .Function.ResultThatImplements "*http.ResponseWriter" }}
           {{ with $r }}
@@ -79,7 +105,7 @@ aspects:
           http: net/http
         template: |-
           {{ $ret := .Function.ResultThatImplements "net/http.Handler" }}
-          {{ $inputs := .Function.Arguments.FirstThatImplements "*main.Input" }}
+          {{ $inputs := .Function.Argument 0}}
           {{ if and $ret $inputs }}
             mux := http.NewServeMux()
             handleFunc := func(pattern string, handlerFunc func(http.ResponseWriter, *http.Request)) {
@@ -87,8 +113,8 @@ aspects:
               handler := otelhttp.WithRouteTag(pattern, http.HandlerFunc(handlerFunc))
               mux.Handle(pattern, handler)
             }
-            handleFunc("/health", healthHandler)
-            handleFunc("/load/1", {{ $inputs }}.loadHandler)
+            handleFunc("/health", HealthHandler)
+            handleFunc("/load/1", {{ $inputs }}.LoadHandler)
 
             {{ $ret }} = otelhttp.NewHandler(mux, "/")
             return {{ $ret }}

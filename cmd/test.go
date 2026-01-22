@@ -28,7 +28,7 @@ var (
 	dockerClient   *Client
 	serverPID      *os.Process
 	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion"}
-	containerNames = []string{"go-auto", "go-obi"}
+	containerNames = []string{"go-auto", "go-obi", "collector"}
 )
 
 func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
@@ -83,32 +83,43 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	}
 	inputs := opts.Inputs
 
+	cleanup, err := buildGoEnvironment(ctx, opts, scenario)
+	if err != nil {
+		log.Debug("Failed to build Go environment", "error", err)
+		return nil, err
+	}
 	if scenario != "default" {
-		err := setupOTelEnvironment(log)
+		err := setupOTelEnvironment(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	if scenario == "obi" {
 		err := setupOBIEnvironment(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	if scenario == "ebpf" {
 		err := setupEBPFEnvironment(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	cleanup, err := buildGoEnvironment(ctx, opts, scenario)
-	if err != nil {
-		log.Debug("Failed to build Go environment", "error", err)
-		return nil, err
-	}
+	appStop := make(chan struct{}, 1)
+	go func() {
+		resCh, errCh := dockerClient.ContainerWait(ctx, scenario, container.WaitConditionNotRunning)
+		select {
+		case <-appStop:
+			log.Debug("🖥 ️ app container stopped")
+		case <-ctx.Done():
+			log.Debug("🖥️  app container context done", "err", ctx.Err())
+		case res := <-resCh:
+			cancel(fmt.Errorf("app container exited unexpectedly with status %d", res.StatusCode))
+		case err := <-errCh:
+			cancel(fmt.Errorf("app container wait failure: %w", err))
+		}
+	}()
 
 	// Wait for the app server to be healthy
 	log.Info("⌛ app server waiting to be healthy")
@@ -141,6 +152,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		Clients:     inputs.Clients,
 		Duration:    inputs.Duration,
 		ExpectError: inputs.Exceptions,
+		Endpoints:   1,
 	})
 	if err != nil {
 		log.Debug("Failed to generate requests", "error", err)
@@ -162,12 +174,14 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	if !inputs.Flush {
 		signal = "SIGKILL"
 	}
+	appStop <- struct{}{}
 	err = cleanup(container.StopOptions{Signal: signal})
 	if err != nil {
 		log.Debug("Failed to cleanup", "error", err)
 		return nil, err
 	}
 	out.StopEnd = time.Now()
+
 	out.StopStats, err = stopStats()
 	if err != nil {
 		log.Debug("Failed to get end stats", "error", err)
@@ -347,11 +361,9 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 	return cleanup, nil
 }
 
-func setupOTelEnvironment(log *slog.Logger) error {
-	// Setup OTel Collector
-	run(dockerCommand, "up", "-d", "otel-collector")
-	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-
+func setupOTelEnvironment(_ context.Context, opts *RunManyOpts) error {
+	log := opts.Logger
+	// TODO: should this go here?
 	log.Info("✅ OTel environment setup complete")
 	return nil
 }
@@ -365,7 +377,7 @@ func setupOrchestrion(log *slog.Logger) error {
 
 	// Install Orchestrion
 	log.Info("⚠️ Orchestrion command not found, installing latest...")
-	err := run("go", "install", "github.com/orchestrion/orchestrion@latest")
+	err := run("go", "install", "github.com/DataDog/orchestrion@latest")
 	if err != nil {
 		log.Error("❌ Failed to install Orchestrion")
 		return err
@@ -399,7 +411,12 @@ func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) error {
 	}, nil, nil, "go-auto")
 
 	if err != nil {
-		log.Error("❌ Failed to setup eBPF environment", "error", err)
+		log.Error("❌ Failed to create eBPF container", "error", err)
+		return err
+	}
+
+	if err := dockerClient.ContainerStart(ctx, "go-auto", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start eBPF container", "error", err)
 		return err
 	}
 
@@ -430,9 +447,15 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) error {
 	}, nil, nil, "go-obi")
 
 	if err != nil {
-		log.Error("❌ Failed to setup OBI environment", "error", err)
+		log.Error("❌ Failed to create OBI container", "error", err)
 		return err
 	}
+
+	if err := dockerClient.ContainerStart(ctx, "go-obi", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start OBI container", "error", err)
+		return err
+	}
+
 	log.Info("✅ OBI environment setup complete")
 	return nil
 }
@@ -516,7 +539,9 @@ func startStats(ctx context.Context, containerID string) func() ([]*container.St
 			}
 			var stats container.StatsResponse
 			stats, err = getContainerStats(ctx, containerID)
-			snapshots = append(snapshots, &stats)
+			if err == nil {
+				snapshots = append(snapshots, &stats)
+			}
 			next = next.Add(100 * time.Millisecond)
 			select {
 			case <-firstCh:

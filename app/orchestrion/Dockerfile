@@ -8,8 +8,11 @@ RUN go mod init orchestrion
 COPY app/main.go ./
 COPY app/orchestrion/binaries/ /binaries/
 COPY app/orchestrion/orchestrion.yml ./
+COPY orchestrion.tool.go ./
+
+RUN go install github.com/DataDog/orchestrion@latest
 
 RUN go mod tidy
-RUN orchestrion go build -o main .
+RUN GOFLAGS="-mod=mod" orchestrion go build -o main .
 
 ENTRYPOINT ["./main"]

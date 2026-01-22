@@ -7,8 +7,9 @@ RUN go mod init ebpf
 
 COPY app/main.go ./
 COPY app/ebpf/binaries/ /binaries/
+COPY entry.sh ./
 
 RUN go mod tidy
 RUN go build -o main .
 
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./entry.sh"]
