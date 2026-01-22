@@ -144,6 +144,9 @@ type Input struct {
 
 	// Duration for which to put the application under load in seconds.
 	Duration float64 `json:"duration"`
+
+	// OtelEndpoint is the OpenTelemetry collector endpoint (e.g. "otel-collector:4318")
+	OtelEndpoint string `json:"otel_endpoint"`
 }
 
 func NewClient(ctx context.Context) (*Client, error) {

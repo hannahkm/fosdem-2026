@@ -16,9 +16,12 @@ aspects:
       - inject-declarations:
           imports:
             context: context
+            os: os   
+            time: time 
             trace: go.opentelemetry.io/otel/sdk/trace
             otlptracehttp: go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
             resource: go.opentelemetry.io/otel/sdk/resource
+            otel: go.opentelemetry.io/otel
             semconv: go.opentelemetry.io/otel/semconv/v1.20.0
           template: |-
             var otelShutdown func(context.Context) error
@@ -34,7 +37,7 @@ aspects:
 
               exporter, err := otlptracehttp.New(ctx,
                 otlptracehttp.WithInsecure(),
-                otlptracehttp.WithEndpoint("localhost:4318"),
+                otlptracehttp.WithEndpoint(endpoint),
                 otlptracehttp.WithTimeout(30*time.Second),
               )
               if err != nil {
@@ -57,6 +60,7 @@ aspects:
                 trace.WithResource(res),
               )
               otelShutdown = provider.Shutdown
+              otel.SetTracerProvider(provider)
             }
       - prepend-statements:
           imports:

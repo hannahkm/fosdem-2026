@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	types "github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/joho/godotenv"
 	"golang.org/x/sync/errgroup"
@@ -29,6 +30,7 @@ var (
 	serverPID      *os.Process
 	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion"}
 	containerNames = []string{"go-auto", "go-obi", "collector"}
+	networkName    = "fosdem2026"
 )
 
 func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
@@ -247,6 +249,10 @@ func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
 		return err
 	}
 
+	if err := checkNetwork(ctx, opts); err != nil {
+		return err
+	}
+
 	// Setup Docker services
 	run(dockerCommand, "up", "-d", "--remove-orphans")
 	time.Sleep(3 * time.Second)
@@ -325,9 +331,18 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		},
 	}, hostCfg, nil, nil, scenario)
 
+	if err := dockerClient.NetworkConnect(ctx, networkName, scenario, nil); err != nil {
+		log.Error("❌ Failed to connect container to network", "error", err)
+		return nil, err
+	}
+
 	if err != nil {
 		log.Debug("Failed to create container", "error", err)
 		return nil, err
+	}
+
+	if scenario != "default" {
+		opts.Inputs.OtelEndpoint = "otel-collector:4318"
 	}
 
 	// Handle inputs.json before starting the container
@@ -405,9 +420,10 @@ func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) error {
 			"OTEL_PROPAGATORS=tracecontext,baggage",
 		},
 	}, &container.HostConfig{
-		PidMode:    container.PidMode("container:ebpf"),
-		Privileged: true,
-		Binds:      []string{"/proc:/host/proc"},
+		PidMode:     container.PidMode("container:ebpf"),
+		Privileged:  true,
+		Binds:       []string{"/proc:/host/proc"},
+		NetworkMode: container.NetworkMode("container:ebpf"),
 	}, nil, nil, "go-auto")
 
 	if err != nil {
@@ -441,9 +457,10 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) error {
 			"OTEL_SERVICE_NAME=fosdem-obi",
 		},
 	}, &container.HostConfig{
-		PidMode:    container.PidMode("container:obi"),
-		Privileged: true,
-		Binds:      []string{"/proc:/host/proc"},
+		PidMode:     container.PidMode("container:obi"),
+		Privileged:  true,
+		Binds:       []string{"/proc:/host/proc"},
+		NetworkMode: container.NetworkMode("container:obi"),
 	}, nil, nil, "go-obi")
 
 	if err != nil {
@@ -572,4 +589,28 @@ func getContainerStats(ctx context.Context, containerID string) (container.Stats
 		return container.StatsResponse{}, err
 	}
 	return stats, nil
+}
+
+func checkNetwork(ctx context.Context, opts *RunManyOpts) error {
+	log := opts.Logger
+	networks, err := dockerClient.NetworkList(ctx, types.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, network := range networks {
+		if network.Name == networkName {
+			log.Info("✅ Network found", "network", network.Name)
+			return nil
+		}
+	}
+	log.Info("Network not found, creating...")
+	_, err = dockerClient.NetworkCreate(ctx, networkName, types.CreateOptions{
+		Driver: "bridge",
+	})
+	if err != nil {
+		log.Error("❌ Failed to create network", "error", err)
+		return err
+	}
+	log.Info("✅ Network created", "network", networkName)
+	return nil
 }

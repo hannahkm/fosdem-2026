@@ -34,7 +34,7 @@ func init() {
 
 	exporter, err := otlptracehttp.New(ctx,
 		otlptracehttp.WithInsecure(),
-		otlptracehttp.WithEndpoint("localhost:4318"),
+		otlptracehttp.WithEndpoint(endpoint),
 		otlptracehttp.WithTimeout(30*time.Second),
 	)
 	if err != nil {
@@ -57,20 +57,22 @@ func init() {
 		trace.WithResource(res),
 	)
 	otelShutdown = provider.Shutdown
+	otel.SetTracerProvider(provider)
 }
 
 // Input defines the subset of the doe.cue inputs implemented by this program.
 type Input struct {
-	Port      int     `json:"port"`
-	OffCPU    float64 `json:"off_cpu"`
-	LoopsCPU  float64 `json:"loops_cpu"`
-	LoopsNum  int     `json:"loops_num"`
-	AllocsCPU float64 `json:"allocs_cpu"`
-	AllocsNum int     `json:"allocs_num"`
-	AllocSize int     `json:"alloc_size"`
-	Tracing   bool    `json:"tracing"`
-	Profiling bool    `json:"profiling"`
-	Workers   int     `json:"workers"`
+	Port         int     `json:"port"`
+	OffCPU       float64 `json:"off_cpu"`
+	LoopsCPU     float64 `json:"loops_cpu"`
+	LoopsNum     int     `json:"loops_num"`
+	AllocsCPU    float64 `json:"allocs_cpu"`
+	AllocsNum    int     `json:"allocs_num"`
+	AllocSize    int     `json:"alloc_size"`
+	Tracing      bool    `json:"tracing"`
+	Profiling    bool    `json:"profiling"`
+	Workers      int     `json:"workers"`
+	OTelEndpoint string  `json:"otel_endpoint"`
 }
 
 func main() {
