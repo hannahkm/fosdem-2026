@@ -51,7 +51,7 @@ var CmdRun = &cli.Command{
 				Port:           8080,
 				RuntimeVersion: "1.25.5",
 				Flush:          true,
-				RPS:            100,
+				RPS:            1,
 				Duration:       5,
 				Timeout:        5,
 			},

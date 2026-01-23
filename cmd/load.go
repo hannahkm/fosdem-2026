@@ -34,9 +34,7 @@ func Generate(ctx context.Context, config *Config) (requests []Request, err erro
 	var mu sync.Mutex
 	requestFn := func(ctx context.Context, i int) error {
 		start := time.Now()
-		// Round-robin across endpoints (1-indexed)
-		endpointNum := (i % config.Endpoints) + 1
-		url := fmt.Sprintf("%s/%d", config.URL, endpointNum)
+		url := fmt.Sprintf("%s", config.URL)
 		req := Request{}
 		err := doRequest(ctx, config.Client, url, config.ExpectError)
 		if err != nil {

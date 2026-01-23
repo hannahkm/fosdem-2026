@@ -24,12 +24,15 @@ import (
 var otelShutdown func(context.Context) error
 var provider *trace.TracerProvider
 
-func init() {
+func setupTracerProvider(inputs *Input) {
 	ctx := context.Background()
 
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "localhost:4318"
+	endpoint := "localhost:4318"
+	if inputs.OTelEndpoint != "" {
+		endpoint = inputs.OTelEndpoint
+	}
+	if e := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); e != "" {
+		endpoint = e
 	}
 
 	exporter, err := otlptracehttp.New(ctx,
@@ -38,12 +41,13 @@ func init() {
 		otlptracehttp.WithTimeout(30*time.Second),
 	)
 	if err != nil {
+		log.Fatal("Failed to create OTel exporter", "error", err)
 		os.Exit(1)
 	}
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
-			semconv.ServiceName("orchestrion"),
+			semconv.ServiceName("manual"),
 			semconv.ServiceVersion("1.0.0"),
 		),
 	)
@@ -87,7 +91,6 @@ func main() {
 	log.SetFlags(0)
 	// Check if the inputs file is provided.
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: program <inputs.json>")
 		os.Exit(1)
 	}
 
@@ -108,6 +111,8 @@ func main() {
 		log.Printf("Setting GOMAXPROCS to %d", inputs.Workers)
 		runtime.GOMAXPROCS(inputs.Workers)
 	}
+
+	setupTracerProvider(&inputs)
 
 	mux := setupHandlers(&inputs)
 
@@ -143,9 +148,9 @@ func main() {
 func setupHandlers(inputs *Input) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", HealthHandler)
-	mux.HandleFunc("/load/1", inputs.LoadHandler)
+	mux.HandleFunc("/load", inputs.LoadHandler)
 
-	return otelhttp.NewHandler(mux, "/")
+	return otelhttp.NewHandler(mux, "")
 }
 
 func HealthHandler(w http.ResponseWriter, r *http.Request) {

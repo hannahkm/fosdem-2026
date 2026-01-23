@@ -329,6 +329,9 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		ExposedPorts: nat.PortSet{
 			nat.Port(fmt.Sprintf("%d/tcp", port)): struct{}{},
 		},
+		Env: []string{
+			fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", opts.Inputs.OtelEndpoint),
+		},
 	}, hostCfg, nil, nil, scenario)
 
 	if err := dockerClient.NetworkConnect(ctx, networkName, scenario, nil); err != nil {
