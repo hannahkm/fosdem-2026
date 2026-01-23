@@ -1,0 +1,19 @@
+open_port: 8080
+service:
+  name: fosdem-obi
+log_level: debug
+
+otel_traces_export:
+  endpoint: http://otel-collector:4318
+
+prometheus_export:
+  port: 9090
+  path: /metrics
+
+meter_provider:
+  features:
+    - application
+
+attributes:
+  kubernetes:
+    enable: false

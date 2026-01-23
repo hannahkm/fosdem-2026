@@ -85,6 +85,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	}
 	inputs := opts.Inputs
 
+	cleanupFunctions := []func(container.StopOptions) error{}
 	cleanup, err := buildGoEnvironment(ctx, opts, scenario)
 	if err != nil {
 		log.Debug("Failed to build Go environment", "error", err)
@@ -97,17 +98,21 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		}
 	}
 	if scenario == "obi" {
-		err := setupOBIEnvironment(ctx, opts)
+		cleanupOBI, err := setupOBIEnvironment(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
+		cleanupFunctions = append(cleanupFunctions, cleanupOBI)
 	}
 	if scenario == "ebpf" {
-		err := setupEBPFEnvironment(ctx, opts)
+		cleanupEBPF, err := setupEBPFEnvironment(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
+		cleanupFunctions = append(cleanupFunctions, cleanupEBPF)
 	}
+	cleanupFunctions = append(cleanupFunctions, cleanup)
+
 	log.Info("✅ app build done")
 	appStop := make(chan struct{}, 1)
 	go func() {
@@ -169,7 +174,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		log.Debug("Failed to get load stats", "error", err)
 		return nil, err
 	}
-	time.Sleep(2 * time.Second) // wait for the app to finish processing
+	time.Sleep(5 * time.Second) // wait for the app to finish processing
 
 	stopStats := startStats(ctx, scenario)
 
@@ -179,10 +184,12 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		signal = "SIGKILL"
 	}
 	appStop <- struct{}{}
-	err = cleanup(container.StopOptions{Signal: signal})
-	if err != nil {
-		log.Debug("Failed to cleanup", "error", err)
-		return nil, err
+	for _, cleanupFunc := range cleanupFunctions {
+		err = cleanupFunc(container.StopOptions{Signal: signal})
+		if err != nil {
+			log.Debug("Failed to cleanup", "error", err)
+			return nil, err
+		}
 	}
 	out.StopEnd = time.Now()
 
@@ -410,14 +417,14 @@ func setupOrchestrion(log *slog.Logger) error {
 	return nil
 }
 
-func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) error {
+func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
 	// Setup eBPF environment
 	log := opts.Logger
 
 	log.Info("⌛ Pulling eBPF image...")
 	if err := run("docker", "pull", "otel/autoinstrumentation-go"); err != nil {
 		log.Error("❌ Failed to pull eBPF image", "error", err)
-		return err
+		return nil, err
 	}
 
 	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
@@ -437,67 +444,84 @@ func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) error {
 
 	if err != nil {
 		log.Error("❌ Failed to create eBPF container", "error", err)
-		return err
+		return nil, err
 	}
 
 	if err := dockerClient.ContainerStart(ctx, "ebpf", container.StartOptions{}); err != nil {
 		log.Debug("❌ Failed to start container", "error", err)
-		return err
+		return nil, err
 	}
 
 	if err := dockerClient.NetworkConnect(ctx, networkName, "go-auto", nil); err != nil {
 		log.Error("❌ Failed to connect go-auto to network", "error", err)
-		return err
+		return nil, err
 	}
 	waitForAppHealth(ctx, opts.Inputs.Port, "13133")
 	if err := dockerClient.ContainerStart(ctx, "go-auto", container.StartOptions{}); err != nil {
 		log.Error("❌ Failed to start eBPF sidecar", "error", err)
-		return err
+		return nil, err
+	}
+
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, "go-auto", opts)
 	}
 
 	log.Info("✅ eBPF environment setup complete")
-	return nil
+	return cleanup, nil
 }
 
-func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) error {
+func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
 	log := opts.Logger
 
 	log.Info("⌛ Pulling OBI image...")
 	if err := run("docker", "pull", "otel/ebpf-instrument:main"); err != nil {
 		log.Error("❌ Failed to pull OBI image", "error", err)
-		return err
+		return nil, err
 	}
 
 	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
 		Image: "otel/ebpf-instrument:main",
 		Env: []string{
-			"OTEL_EBPF_TRACE_PRINTER=text",
-			"OTEL_EBPF_OPEN_PORT=8443",
+			"OBI_CONFIG_PATH=/etc/obi/config.yaml",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318",
 			"OTEL_SERVICE_NAME=fosdem-obi",
+			"OTEL_EBPF_OPEN_PORT=" + strconv.Itoa(opts.Inputs.Port),
+			"OTEL_EBPF_PROMETHEUS_PORT=9090",
 		},
 	}, &container.HostConfig{
-		PidMode:     container.PidMode("container:obi"),
-		Privileged:  true,
-		Binds:       []string{"/proc:/host/proc"},
-		NetworkMode: container.NetworkMode("container:obi"),
+		PidMode:    container.PidMode("container:obi"),
+		Privileged: true,
+		Binds: []string{
+			"/proc:/host/proc",
+			filepath.Join(getRoot(), "obi-config.yaml") + ":/etc/obi/config.yaml:ro",
+		},
 	}, nil, nil, "go-obi")
 
 	if err != nil {
 		log.Error("❌ Failed to create OBI container", "error", err)
-		return err
+		return nil, err
 	}
 
 	if err := dockerClient.ContainerStart(ctx, "obi", container.StartOptions{}); err != nil {
 		log.Debug("❌ Failed to start container", "error", err)
-		return err
+		return nil, err
 	}
+	if err := dockerClient.NetworkConnect(ctx, networkName, "go-obi", nil); err != nil {
+		log.Error("❌ Failed to connect go-obi to network", "error", err)
+		return nil, err
+	}
+	waitForAppHealth(ctx, opts.Inputs.Port, "13133")
 	if err := dockerClient.ContainerStart(ctx, "go-obi", container.StartOptions{}); err != nil {
 		log.Error("❌ Failed to start OBI sidecar", "error", err)
-		return err
+		return nil, err
+	}
+
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, "go-obi", opts)
 	}
 
 	log.Info("✅ OBI environment setup complete")
-	return nil
+	return cleanup, nil
 }
 
 // Cleanup running services and ports. Only run when requested by the user, since this will
