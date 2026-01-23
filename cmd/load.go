@@ -34,9 +34,8 @@ func Generate(ctx context.Context, config *Config) (requests []Request, err erro
 	var mu sync.Mutex
 	requestFn := func(ctx context.Context, i int) error {
 		start := time.Now()
-		url := fmt.Sprintf("%s", config.URL)
 		req := Request{}
-		err := doRequest(ctx, config.Client, url, config.ExpectError)
+		err := doRequest(ctx, config.Client, config.URL, config.ExpectError)
 		if err != nil {
 			req.Error = err.Error()
 		}

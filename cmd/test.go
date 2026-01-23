@@ -323,6 +323,10 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		},
 	}
 
+	if scenario != "default" {
+		opts.Inputs.OtelEndpoint = "otel-collector:4318"
+	}
+
 	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
 		Image: scenario,
 		Cmd:   []string{"/app/inputs.json"},
@@ -342,10 +346,6 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 	if err != nil {
 		log.Debug("Failed to create container", "error", err)
 		return nil, err
-	}
-
-	if scenario != "default" {
-		opts.Inputs.OtelEndpoint = "otel-collector:4318"
 	}
 
 	// Handle inputs.json before starting the container

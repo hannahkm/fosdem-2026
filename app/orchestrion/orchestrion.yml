@@ -10,8 +10,7 @@ aspects:
         - package-name: main
         - function-body:
             function:
-              - name: main
-              - signature: {}
+              - name: processInputs
     advice:
       - inject-declarations:
           imports:
@@ -27,12 +26,15 @@ aspects:
             var otelShutdown func(context.Context) error
             var provider *trace.TracerProvider
             
-            func init() {
+            func setupTracerProvider(inputs *Input) {
               ctx := context.Background()
 
-              endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-              if endpoint == "" {
-                endpoint = "localhost:4318"
+              endpoint := "localhost:4318"
+              if inputs.OTelEndpoint != "" {
+                endpoint = inputs.OTelEndpoint
+              }
+              if e := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); e != "" {
+                endpoint = e
               }
 
               exporter, err := otlptracehttp.New(ctx,
@@ -62,6 +64,23 @@ aspects:
               otelShutdown = provider.Shutdown
               otel.SetTracerProvider(provider)
             }
+      - prepend-statements:
+          template: |-
+            {{ $inputs := .Function.ResultThatImplements "*Input" }}
+            {{ if $inputs }}
+              defer func() {
+                setupTracerProvider({{ $inputs }})
+              }()
+            {{- end -}}
+
+  - id: Shutdown OTel Tracer
+    join-point:
+      all-of:
+        - package-name: main
+        - function-body:
+            function:
+              - name: mains
+    advice:
       - prepend-statements:
           imports:
             context: context
@@ -113,8 +132,8 @@ aspects:
           {{ if and $ret $inputs }}
             mux := http.NewServeMux()
             mux.HandleFunc("/health", HealthHandler)
-            mux.HandleFunc("/load/1", inputs.LoadHandler)
+            mux.HandleFunc("/load", inputs.LoadHandler)
 
-            {{ $ret }} = otelhttp.NewHandler(mux, "/")
+            {{ $ret }} = otelhttp.NewHandler(mux, "")
             return {{ $ret }}
           {{- end -}}

@@ -29,9 +29,7 @@ type Input struct {
 	OTelEndpoint string  `json:"otel_endpoint"`
 }
 
-func main() {
-	log.SetFlags(0)
-	// Check if the inputs file is provided.
+func processInputs() (*Input, error) {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: program <inputs.json>")
 		os.Exit(1)
@@ -42,12 +40,24 @@ func main() {
 	data, err := os.ReadFile(inputsPath)
 	if err != nil {
 		log.Fatalf("Error reading config file: %v", err)
+		return nil, err
 	}
 
 	// Parse the JSON into the Inputs struct.
 	var inputs Input
 	if err := json.Unmarshal(data, &inputs); err != nil {
 		log.Fatalf("Error parsing JSON: %v", err)
+		return nil, err
+	}
+	return &inputs, nil
+}
+
+func main() {
+	log.SetFlags(0)
+	inputs, err := processInputs()
+	if err != nil {
+		log.Fatalf("Error processing inputs: %v", err)
+		os.Exit(1)
 	}
 
 	if inputs.Workers != 0 {
@@ -55,7 +65,7 @@ func main() {
 		runtime.GOMAXPROCS(inputs.Workers)
 	}
 
-	mux := setupHandlers(&inputs)
+	mux := setupHandlers(inputs)
 
 	// Start the HTTP server using the port specified in the inputs.
 	addr := fmt.Sprintf(":%d", inputs.Port)
