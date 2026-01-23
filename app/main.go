@@ -99,7 +99,7 @@ func main() {
 func setupHandlers(inputs *Input) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", HealthHandler)
-	mux.HandleFunc("/load/1", inputs.LoadHandler)
+	mux.HandleFunc("/load", inputs.LoadHandler)
 	return mux
 }
 

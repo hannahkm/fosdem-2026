@@ -108,6 +108,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 			return nil, err
 		}
 	}
+	log.Info("✅ app build done")
 	appStop := make(chan struct{}, 1)
 	go func() {
 		resCh, errCh := dockerClient.ContainerWait(ctx, scenario, container.WaitConditionNotRunning)
@@ -126,7 +127,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	// Wait for the app server to be healthy
 	log.Info("⌛ app server waiting to be healthy")
 	waitStart := time.Now()
-	if err := waitForAppHealth(ctx, inputs.Port); err != nil {
+	if err := waitForAppHealth(ctx, inputs.Port, "health"); err != nil {
 		log.Debug("Timed out waiting for app server to be healthy", "error", err)
 		return nil, err
 	}
@@ -168,6 +169,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		log.Debug("Failed to get load stats", "error", err)
 		return nil, err
 	}
+	time.Sleep(2 * time.Second) // wait for the app to finish processing
 
 	stopStats := startStats(ctx, scenario)
 
@@ -192,7 +194,7 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	return out, nil
 }
 
-func waitForAppHealth(ctx context.Context, port int) error {
+func waitForAppHealth(ctx context.Context, port int, endpoint string) error {
 	healthCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -203,18 +205,18 @@ func waitForAppHealth(ctx context.Context, port int) error {
 		case <-time.After(100 * time.Millisecond):
 		}
 
-		if healthy, _ := httpHealthCheck(healthCtx, port); healthy {
+		if healthy, _ := httpHealthCheck(healthCtx, port, endpoint); healthy {
 			break
 		}
 	}
 	return nil
 }
 
-func httpHealthCheck(ctx context.Context, port int) (bool, error) {
+func httpHealthCheck(ctx context.Context, port int, endpoint string) (bool, error) {
 	client := &http.Client{
 		Timeout: 1 * time.Second,
 	}
-	url := fmt.Sprintf("http://localhost:%d/health", port)
+	url := fmt.Sprintf("http://localhost:%d/%s", port, endpoint)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -365,17 +367,21 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 	tw.Close()
 
 	dockerClient.CopyToContainer(ctx, scenario, "/app", buf, container.CopyToContainerOptions{})
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, scenario, opts)
+	}
 
-	// Start the container
+	// Start the container ONLY if not ebpf/obi (they start in their setup functions)
+	if scenario == "ebpf" || scenario == "obi" {
+		return cleanup, nil
+	}
+
 	if err := dockerClient.ContainerStart(ctx, scenario, container.StartOptions{}); err != nil {
 		log.Debug("Failed to start container", "error", err)
 		return nil, err
 	}
 	log.Info("✅ app build done")
 
-	cleanup := func(opts container.StopOptions) error {
-		return dockerClient.ContainerStop(ctx, scenario, opts)
-	}
 	return cleanup, nil
 }
 
@@ -418,15 +424,15 @@ func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) error {
 		Image: "otel/autoinstrumentation-go",
 		Env: []string{
 			"OTEL_GO_AUTO_TARGET_EXE=/app/main",
-			"OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318",
+			"OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318",
+			"OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf",
 			"OTEL_SERVICE_NAME=fosdem-ebpf",
 			"OTEL_PROPAGATORS=tracecontext,baggage",
 		},
 	}, &container.HostConfig{
-		PidMode:     container.PidMode("container:ebpf"),
-		Privileged:  true,
-		Binds:       []string{"/proc:/host/proc"},
-		NetworkMode: container.NetworkMode("container:ebpf"),
+		PidMode:    container.PidMode("container:ebpf"),
+		Privileged: true,
+		Binds:      []string{"/proc:/host/proc"},
 	}, nil, nil, "go-auto")
 
 	if err != nil {
@@ -434,8 +440,18 @@ func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) error {
 		return err
 	}
 
+	if err := dockerClient.ContainerStart(ctx, "ebpf", container.StartOptions{}); err != nil {
+		log.Debug("❌ Failed to start container", "error", err)
+		return err
+	}
+
+	if err := dockerClient.NetworkConnect(ctx, networkName, "go-auto", nil); err != nil {
+		log.Error("❌ Failed to connect go-auto to network", "error", err)
+		return err
+	}
+	waitForAppHealth(ctx, opts.Inputs.Port, "13133")
 	if err := dockerClient.ContainerStart(ctx, "go-auto", container.StartOptions{}); err != nil {
-		log.Error("❌ Failed to start eBPF container", "error", err)
+		log.Error("❌ Failed to start eBPF sidecar", "error", err)
 		return err
 	}
 
@@ -471,8 +487,12 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) error {
 		return err
 	}
 
+	if err := dockerClient.ContainerStart(ctx, "obi", container.StartOptions{}); err != nil {
+		log.Debug("❌ Failed to start container", "error", err)
+		return err
+	}
 	if err := dockerClient.ContainerStart(ctx, "go-obi", container.StartOptions{}); err != nil {
-		log.Error("❌ Failed to start OBI container", "error", err)
+		log.Error("❌ Failed to start OBI sidecar", "error", err)
 		return err
 	}
 
