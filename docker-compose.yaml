@@ -15,7 +15,7 @@ services:
       - DOCKER_INFLUXDB_INIT_USERNAME=admin
       - DOCKER_INFLUXDB_INIT_PASSWORD=fosdem
       - DOCKER_INFLUXDB_INIT_ORG=fosdem
-      - DOCKER_INFLUXDB_INIT_BUCKET=k6testing
+      - DOCKER_INFLUXDB_INIT_BUCKET=fosdem2026
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=13NSkxbvAnGSbQIHAzWAQFsNVDXWHD94-NG2taWgmFCJ1FiLiFjjwNe_Vg37sKUc2Cn_kSWYMCR0egexhp3PRg==
 
   grafana:
@@ -32,25 +32,6 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - influxdb
-
-  k6-load-test:
-    image: grafana/k6:latest
-    stdin_open: true
-    networks:
-      - fosdem2026
-    environment:
-      - BASE_URL=${BASE_URL:-http://host.docker.internal:8080}
-      - INSTRUMENTATION=${INSTRUMENTATION:-default}
-      - K6_INFLUXDB_ORGANIZATION=fosdem2026
-      - K6_INFLUXDB_BUCKET=k6testing
-      - K6_INFLUXDB_TOKEN=13NSkxbvAnGSbQIHAzWAQFsNVDXWHD94-NG2taWgmFCJ1FiLiFjjwNe_Vg37sKUc2Cn_kSWYMCR0egexhp3PRg==
-      - K6_INFLUXDB_ADDR=http://host.docker.internal:8086/k6testing
-    volumes:
-      - .:/k6
-    profiles:
-      - load-test
-    depends_on:
-      - otel-collector
 
   postgres:
     image: postgres:15
@@ -103,7 +84,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib
-    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    command: [ "--config=/etc/otel-collector-config.yaml", "--feature-gates=-exporter.datadogexporter.DisableAPMStats" ]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
@@ -118,8 +99,9 @@ services:
       - fosdem2026
     environment:
       - DD_API_KEY=${DD_API_KEY}
+      - GRAFANA_ENDPOINT=${GRAFANA_ENDPOINT}
+      - GRAFANA_API_KEY=${GRAFANA_API_KEY}
     depends_on:
-      - influxdb
       - jaeger
       - prometheus
 

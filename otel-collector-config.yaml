@@ -35,6 +35,15 @@ exporters:
     api:
       site: datadoghq.com
       key: ${DD_API_KEY}
+    hostname: "local-machine"
+  prometheusremotewrite/grafana:
+    endpoint: "${GRAFANA_ENDPOINT}"
+    headers:
+      Authorization: "${GRAFANA_API_KEY}"
+    tls:
+      insecure: false
+    resource_to_telemetry_conversion:
+      enabled: true
 
 connectors:
   spanmetrics:
@@ -82,7 +91,8 @@ service:
     metrics:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [prometheus, datadog] # Change to [prometheus] when disabling Datadog
+      exporters: [prometheusremotewrite/grafana, datadog] # Change to [prometheusremotewrite/grafana] when disabling Datadog
     metrics/spanmetrics:
       receivers: [spanmetrics]
-      exporters: [prometheus]
+      processors: [batch]
+      exporters: [prometheusremotewrite/grafana, datadog] # Change to [prometheusremotewrite/grafana] when disabling Datadog

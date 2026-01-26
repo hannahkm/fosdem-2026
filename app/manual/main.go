@@ -16,12 +16,14 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 )
 
 var otelShutdown func(context.Context) error
+var meterShutdown func(context.Context) error
 var provider *trace.TracerProvider
 
 func setupTracerProvider(inputs *Input) {
@@ -60,7 +62,12 @@ func setupTracerProvider(inputs *Input) {
 		),
 		trace.WithResource(res),
 	)
+	meterProvider := metric.NewMeterProvider(metric.WithResource(res))
+
 	otelShutdown = provider.Shutdown
+	meterShutdown = meterProvider.Shutdown
+
+	otel.SetMeterProvider(meterProvider)
 	otel.SetTracerProvider(provider)
 }
 
@@ -84,6 +91,11 @@ func main() {
 		if otelShutdown != nil {
 			if err := otelShutdown(context.Background()); err != nil {
 				log.Printf("Error shutting down OTel provider: %v", err)
+			}
+		}
+		if meterShutdown != nil {
+			if err := meterShutdown(context.Background()); err != nil {
+				log.Printf("Error shutting down OTel meter provider: %v", err)
 			}
 		}
 	}()

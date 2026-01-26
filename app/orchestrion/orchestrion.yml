@@ -21,6 +21,7 @@ aspects:
             otlptracehttp: go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
             resource: go.opentelemetry.io/otel/sdk/resource
             otel: go.opentelemetry.io/otel
+            metric: go.opentelemetry.io/otel/sdk/metric
             semconv: go.opentelemetry.io/otel/semconv/v1.20.0
           template: |-
             var otelShutdown func(context.Context) error
@@ -62,6 +63,8 @@ aspects:
                 trace.WithResource(res),
               )
               otelShutdown = provider.Shutdown
+              meterProvider := metric.NewMeterProvider(metric.WithResource(res))
+              otel.SetMeterProvider(meterProvider)
               otel.SetTracerProvider(provider)
             }
       - prepend-statements:
