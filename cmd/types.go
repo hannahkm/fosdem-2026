@@ -12,6 +12,7 @@ import (
 	docker "github.com/docker/docker/client"
 )
 
+// RunManyOpts holds options for running multiple test scenarios.
 type RunManyOpts struct {
 	Logger   *slog.Logger
 	Inputs   *Input
@@ -20,6 +21,7 @@ type RunManyOpts struct {
 	Num      int
 }
 
+// TestResult holds timing and telemetry data from a single test run.
 type TestResult struct {
 	Start      time.Time                  `json:"start"`
 	AppStart   time.Time                  `json:"app_start"`
@@ -41,34 +43,40 @@ type TestResult struct {
 	RunnerCPU  int                        `json:"runner_cpu,omitempty"`
 }
 
+// Request holds timing data for a single HTTP request.
 type Request struct {
 	End      time.Time     `json:"end"`
 	Duration time.Duration `json:"duration"`
 	Error    string        `json:"error"`
 }
 
+// ProfilePayload holds profiling data collected during a test.
 type ProfilePayload struct {
 	Error error    `json:"error"`
 	Files []string `json:"files"`
 	Bytes int64    `json:"bytes"`
 }
 
+// TracesPayload holds trace data collected during a test.
 type TracesPayload struct {
 	Count int    `json:"count"`
 	Bytes int64  `json:"bytes"`
 	Trace []byte `json:"trace"`
 }
 
+// LogPayload holds log data collected during a test.
 type LogPayload struct {
 	Count int    `json:"count"`
 	Bytes int64  `json:"bytes"`
 	Logs  []byte `json:"logs"`
 }
 
+// Client wraps the Docker client.
 type Client struct {
 	*docker.Client
 }
 
+// BuildOpts holds Docker build options.
 type BuildOpts struct {
 	// Dir points to the directory containing the Dockerfile.
 	Dir string
@@ -77,6 +85,7 @@ type BuildOpts struct {
 	Secrets map[string]string
 }
 
+// Input holds experiment configuration parameters.
 type Input struct {
 	// Hash of all inputs except for the hash itself.
 	Hash string `json:"hash"`
@@ -149,7 +158,8 @@ type Input struct {
 	OtelEndpoint string `json:"otel_endpoint"`
 }
 
-func NewClient(ctx context.Context) (*Client, error) {
+// NewClient creates a new Docker client.
+func NewClient(_ context.Context) (*Client, error) {
 	c, err := docker.NewClientWithOpts()
 	if err != nil {
 		return nil, err
@@ -157,6 +167,7 @@ func NewClient(ctx context.Context) (*Client, error) {
 	return &Client{Client: c}, nil
 }
 
+// BuildCommand constructs a docker build command for the given scenario.
 func (c *Client) BuildCommand(ctx context.Context, opts *BuildOpts, scenario string) *exec.Cmd {
 	args := []string{
 		"build",

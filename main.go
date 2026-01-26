@@ -1,3 +1,4 @@
+// Package main provides the CLI entry point for the FOSDEM 2026 experiment runner.
 package main
 
 import (

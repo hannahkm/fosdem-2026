@@ -1,3 +1,4 @@
+// Package main provides the default (uninstrumented) demo application.
 package main
 
 import (
@@ -103,18 +104,16 @@ func setupHandlers(inputs *Input) http.Handler {
 	return mux
 }
 
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "OK\n")
-
+func HealthHandler(w http.ResponseWriter, _ *http.Request) {
+	_, _ = io.WriteString(w, "OK\n")
 }
 
-func (c *Input) LoadHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Input) LoadHandler(w http.ResponseWriter, _ *http.Request) {
 	a := allocsLoop(c.AllocsNum, c.AllocSize)
 	simulateOffCPU(c.OffCPU)
 	cpuLoop(c.LoopsNum)
 	runtime.KeepAlive(a)
-	io.WriteString(w, "Hello World\n")
-
+	_, _ = io.WriteString(w, "Hello World\n")
 }
 
 // cpuLoop performs a computationally expensive loop that scales with iterations

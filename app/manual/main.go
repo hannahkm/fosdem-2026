@@ -1,3 +1,4 @@
+// Package main provides the manual OTel instrumentation demo application.
 package main
 
 import (
@@ -21,8 +22,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 )
 
-var otelShutdown func(context.Context) error
-var provider *trace.TracerProvider
+var (
+	otelShutdown func(context.Context) error
+	provider     *trace.TracerProvider
+)
 
 func setupTracerProvider(inputs *Input) {
 	ctx := context.Background()
@@ -51,6 +54,9 @@ func setupTracerProvider(inputs *Input) {
 			semconv.ServiceVersion("1.0.0"),
 		),
 	)
+	if err != nil {
+		log.Fatal("Failed to create resource", "error", err)
+	}
 
 	provider = trace.NewTracerProvider(
 		trace.WithBatcher(exporter,
@@ -155,29 +161,21 @@ func setupHandlers(inputs *Input) http.Handler {
 
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	tracer := otel.Tracer("manual")
-	ctx, span := tracer.Start(r.Context(), "manual.handler")
-	defer func() {
-		span.End()
-	}()
-	r = r.WithContext(ctx)
-	io.WriteString(w, "OK\n")
-
+	_, span := tracer.Start(r.Context(), "manual.handler")
+	defer span.End()
+	_, _ = io.WriteString(w, "OK\n")
 }
 
 func (c *Input) LoadHandler(w http.ResponseWriter, r *http.Request) {
 	tracer := otel.Tracer("manual")
-	ctx, span := tracer.Start(r.Context(), "manual.handler")
-	defer func() {
-		span.End()
-	}()
-	r = r.WithContext(ctx)
+	_, span := tracer.Start(r.Context(), "manual.handler")
+	defer span.End()
 
 	a := allocsLoop(c.AllocsNum, c.AllocSize)
 	simulateOffCPU(c.OffCPU)
 	cpuLoop(c.LoopsNum)
 	runtime.KeepAlive(a)
-	io.WriteString(w, "Hello World\n")
-
+	_, _ = io.WriteString(w, "Hello World\n")
 }
 
 // cpuLoop performs a computationally expensive loop that scales with iterations

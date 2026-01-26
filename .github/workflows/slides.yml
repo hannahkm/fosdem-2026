@@ -1,10 +1,18 @@
-name: Build Presentation
+name: Slides
 
 on:
   push:
     branches: [main]
+    paths:
+      - "presentation.md"
+      - "marp/**"
+      - ".github/workflows/slides.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "presentation.md"
+      - "marp/**"
+      - ".github/workflows/slides.yml"
   workflow_dispatch:
 
 jobs:
@@ -15,24 +23,24 @@ jobs:
 
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # ratchet:actions/setup-node@v6
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - run: make install
 
-      - name: Format all
+      - name: Format markdown
         run: |
-          make format
+          make format/md
           git diff --exit-code
 
       - name: Check typos
         uses: crate-ci/typos@65120634e79d8374d1aa2f27e54baa0c364fff5a # ratchet:crate-ci/typos@v1.42.1
 
       - name: Lint markdown
-        run: make lint
+        run: make lint/md
 
       - name: Build presentation
-        run: make build
+        run: make pdf
 
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # ratchet:actions/upload-artifact@v6
         with:
