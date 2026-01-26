@@ -2,7 +2,7 @@
 
 A continuation (AKA improvement) on our [Gophercon '25 talk](https://github.com/hannahkm/gopherconus-2025).
 
-[![Build Presentation](https://github.com/hannahkm/gopherconus-2025/actions/workflows/build.yml/badge.svg)](https://github.com/igoragoli/fosdem-2026-software-performance/actions/workflows/build.yml)
+[![Build Presentation](https://github.com/hannahkm/gopherconus-2025/actions/workflows/build.yml/badge.svg)](https://github.com/hannahkm/gopherconus-2025/actions/workflows/build.yml)
 
 ## Quick Start
 
@@ -40,4 +40,4 @@ All checks run automatically in CI on pull requests.
 
 ## Download
 
-Get the latest PDF from [GitHub Actions](https://github.com/igoragoli/fosdem-2026-software-performance/actions/workflows/build.yml) - click on the latest successful run and download the `presentation-pdf` artifact.
+Get the latest PDF from [GitHub Actions](https://github.com/hannahkm/gopherconus-2025/actions/workflows/build.yml) - click on the latest successful run and download the `presentation-pdf` artifact.

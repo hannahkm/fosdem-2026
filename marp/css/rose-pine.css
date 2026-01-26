@@ -93,7 +93,7 @@ marp-pre {
     border-color: var(--highlight-high);
 }
 
-/* Code blok */
+/* Code block style */
 .hljs-comment {
     color: var(--muted);
 }

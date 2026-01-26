@@ -120,7 +120,7 @@ type Input struct {
 	// OffCPU time (in seconds) to spend in the request handler for each request.
 	OffCPU float64 `json:"off_cpu"`
 
-	// Recursive referes to the Stack: should it be unique functions or a recursive function call.
+	// Recursive refers to the Stack: should it be unique functions or a recursive function call.
 	Recursive bool `json:"recursive"`
 
 	// Flush controls whether the application is asked to gracefully shut down
