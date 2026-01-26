@@ -84,6 +84,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib
+    container_name: otel-collector
     command: [ "--config=/etc/otel-collector-config.yaml", "--feature-gates=-exporter.datadogexporter.DisableAPMStats" ]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml

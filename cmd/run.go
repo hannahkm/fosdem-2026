@@ -53,7 +53,7 @@ var CmdRun = &cli.Command{
 				RuntimeVersion: "1.25.5",
 				Flush:          true,
 				RPS:            1,
-				Duration:       5,
+				Duration:       30,
 				Timeout:        5,
 			},
 		}
