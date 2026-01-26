@@ -1,20 +1,17 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"log/slog"
 	"os"
-	"sync"
 
 	"github.com/lmittmann/tint"
 )
 
+// LogWriter wraps a slog.Logger for io.Writer compatibility.
 type LogWriter struct {
-	mu     sync.Mutex
 	logger *slog.Logger
 	level  slog.Level
-	buf    bytes.Buffer
 	ctx    context.Context
 	offset int
 	prefix string
@@ -22,6 +19,7 @@ type LogWriter struct {
 
 type loggerKey struct{}
 
+// New creates a new slog.Logger with tint handler.
 func New(w *os.File) (*slog.Logger, *slog.LevelVar) {
 	level := &slog.LevelVar{}
 	level.Set(slog.LevelInfo)
@@ -33,10 +31,12 @@ func New(w *os.File) (*slog.Logger, *slog.LevelVar) {
 	return log, level
 }
 
+// WithLogger stores a logger in the context.
 func WithLogger(ctx context.Context, log *slog.Logger) context.Context {
 	return context.WithValue(ctx, loggerKey{}, log)
 }
 
+// NewLogger creates a logger and cancellation function for the given context.
 func NewLogger(ctx context.Context) (*slog.Logger, context.CancelCauseFunc) {
 	log, _ := New(os.Stdout)
 	ctx = WithLogger(ctx, log)
@@ -44,6 +44,7 @@ func NewLogger(ctx context.Context) (*slog.Logger, context.CancelCauseFunc) {
 	return ctx.Value(loggerKey{}).(*slog.Logger), cancel
 }
 
+// NewLogWriter creates a LogWriter that writes to the given logger.
 func NewLogWriter(ctx context.Context, logger *slog.Logger, level slog.Level, prefix string) *LogWriter {
 	return &LogWriter{
 		logger: logger,

@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	dockerCommand  string = "docker-compose"
+	dockerCommand  = "docker-compose"
 	dockerClient   *Client
 	serverPID      *os.Process
 	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion"}
@@ -33,6 +33,7 @@ var (
 	networkName    = "fosdem2026"
 )
 
+// Many runs multiple test scenarios and returns results.
 func Many(ctx context.Context, opts *RunManyOpts) ([]*TestResult, error) {
 	log := opts.Logger
 	results := []*TestResult{}
@@ -234,7 +235,7 @@ func httpHealthCheck(ctx context.Context, port int, endpoint string) (bool, erro
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return resp.StatusCode == http.StatusOK, nil
 }
@@ -249,7 +250,7 @@ func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
 	} else if err == nil {
 		dockerCommand = "docker compose"
 	} else {
-		return errors.New("Neither `docker-compose` nor `docker compose` was found. Please install one of them.")
+		return errors.New("neither docker-compose nor docker compose was found")
 	}
 
 	dockerClient, err = NewClient(ctx)
@@ -263,9 +264,11 @@ func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
 	}
 
 	// Setup Docker services
-	run(dockerCommand, "up", "-d", "--remove-orphans")
+	if err := run(dockerCommand, "up", "-d", "--remove-orphans"); err != nil {
+		return err
+	}
 	time.Sleep(3 * time.Second)
-	run(dockerCommand, "ps")
+	_ = run(dockerCommand, "ps") // best-effort status display
 	log.Info("✅ Services started!")
 	log.Info("   - Grafana: http://localhost:3000")
 	log.Info("   - InfluxDB: http://localhost:8086")
@@ -365,15 +368,23 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
-	tw.WriteHeader(&tar.Header{
+	if err := tw.WriteHeader(&tar.Header{
 		Name: "inputs.json",
-		Mode: 0644,
+		Mode: 0o644,
 		Size: int64(len(data)),
-	})
-	tw.Write(data)
-	tw.Close()
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := tw.Write(data); err != nil {
+		return nil, err
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
 
-	dockerClient.CopyToContainer(ctx, scenario, "/app", buf, container.CopyToContainerOptions{})
+	if err := dockerClient.CopyToContainer(ctx, scenario, "/app", buf, container.CopyToContainerOptions{}); err != nil {
+		return nil, err
+	}
 	cleanup := func(opts container.StopOptions) error {
 		return dockerClient.ContainerStop(ctx, scenario, opts)
 	}
@@ -396,24 +407,6 @@ func setupOTelEnvironment(_ context.Context, opts *RunManyOpts) error {
 	log := opts.Logger
 	// TODO: should this go here?
 	log.Info("✅ OTel environment setup complete")
-	return nil
-}
-
-func setupOrchestrion(log *slog.Logger) error {
-	// Check if Orchestrion is already installed
-	if cmdExists("orchestrion") {
-		log.Info("✅ Orchestrion is already installed")
-		return nil
-	}
-
-	// Install Orchestrion
-	log.Info("⚠️ Orchestrion command not found, installing latest...")
-	err := run("go", "install", "github.com/DataDog/orchestrion@latest")
-	if err != nil {
-		log.Error("❌ Failed to install Orchestrion")
-		return err
-	}
-	log.Info("✅ Orchestrion setup complete")
 	return nil
 }
 
@@ -441,7 +434,6 @@ func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 		Privileged: true,
 		Binds:      []string{"/proc:/host/proc"},
 	}, nil, nil, "go-auto")
-
 	if err != nil {
 		log.Error("❌ Failed to create eBPF container", "error", err)
 		return nil, err
@@ -456,7 +448,9 @@ func setupEBPFEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 		log.Error("❌ Failed to connect go-auto to network", "error", err)
 		return nil, err
 	}
-	waitForAppHealth(ctx, opts.Inputs.Port, "13133")
+	if err := waitForAppHealth(ctx, opts.Inputs.Port, "13133"); err != nil {
+		log.Warn("⚠️ health check failed during eBPF setup", "error", err)
+	}
 	if err := dockerClient.ContainerStart(ctx, "go-auto", container.StartOptions{}); err != nil {
 		log.Error("❌ Failed to start eBPF sidecar", "error", err)
 		return nil, err
@@ -496,7 +490,6 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) (func(container
 			filepath.Join(getRoot(), "obi-config.yaml") + ":/etc/obi/config.yaml:ro",
 		},
 	}, nil, nil, "go-obi")
-
 	if err != nil {
 		log.Error("❌ Failed to create OBI container", "error", err)
 		return nil, err
@@ -510,7 +503,9 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) (func(container
 		log.Error("❌ Failed to connect go-obi to network", "error", err)
 		return nil, err
 	}
-	waitForAppHealth(ctx, opts.Inputs.Port, "13133")
+	if err := waitForAppHealth(ctx, opts.Inputs.Port, "13133"); err != nil {
+		log.Warn("⚠️ health check failed during OBI setup", "error", err)
+	}
 	if err := dockerClient.ContainerStart(ctx, "go-obi", container.StartOptions{}); err != nil {
 		log.Error("❌ Failed to start OBI sidecar", "error", err)
 		return nil, err
@@ -529,7 +524,7 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) (func(container
 func cleanup(log *slog.Logger) error {
 	log.Info("🧹 Cleaning up...")
 
-	run(dockerCommand, "down", "--remove-orphans")
+	_ = run(dockerCommand, "down", "--remove-orphans") // best-effort cleanup
 
 	// Make sure that all containers are stopped and removed, or else re-running
 	// will cause conflicts with existing container names.
@@ -543,8 +538,8 @@ func cleanup(log *slog.Logger) error {
 
 	// Kill ports
 	if serverPID != nil {
-		serverPID.Kill()
-		serverPID.Wait()
+		_ = serverPID.Kill() // best-effort process cleanup
+		_, _ = serverPID.Wait()
 	}
 
 	log.Info("✅ Clean up complete! ✨")

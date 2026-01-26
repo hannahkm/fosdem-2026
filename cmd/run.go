@@ -7,6 +7,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// CmdRun is the CLI command for running experiments.
 var CmdRun = &cli.Command{
 	Name:    "run",
 	Aliases: []string{"r"},
@@ -62,19 +63,19 @@ var CmdRun = &cli.Command{
 			return err
 		}
 
-		c.Writer.Write([]byte("[\n"))
+		_, _ = c.Writer.Write([]byte("[\n"))
 		for i, result := range results {
 			if i > 0 {
-				c.Writer.Write([]byte(",\n"))
+				_, _ = c.Writer.Write([]byte(",\n"))
 			}
 			resultJSON, err := json.Marshal(result)
 			if err != nil {
 				return err
 			}
-			c.Writer.Write([]byte("  "))
-			c.Writer.Write(resultJSON)
+			_, _ = c.Writer.Write([]byte("  "))
+			_, _ = c.Writer.Write(resultJSON)
 		}
-		c.Writer.Write([]byte("\n]\n"))
+		_, _ = c.Writer.Write([]byte("\n]\n"))
 		return nil
 	},
 }

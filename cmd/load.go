@@ -1,3 +1,4 @@
+// Package cmd provides CLI commands for the FOSDEM 2026 experiment runner.
 package cmd
 
 import (
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Config holds load generation parameters.
 type Config struct {
 	Client      *http.Client
 	Log         *slog.Logger
@@ -26,6 +28,7 @@ type Config struct {
 	ExpectError bool
 }
 
+// Generate creates HTTP load against the configured URL.
 func Generate(ctx context.Context, config *Config) (requests []Request, err error) {
 	if config.Clients > 0 && config.RPS > 0 {
 		return nil, fmt.Errorf("clients and rps cannot be set at the same time")
@@ -72,7 +75,7 @@ func doRequest(ctx context.Context, client *http.Client, url string, expectError
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -88,7 +91,6 @@ func doRequest(ctx context.Context, client *http.Client, url string, expectError
 		return fmt.Errorf("invalid response: got=%s, want=%s", string(data), string(want))
 	}
 	return nil
-
 }
 
 func countErrors(requests []Request) int {
@@ -126,7 +128,7 @@ loop:
 
 // ClosedLoop runs fn sequentially in each of the worker goroutines for the given duration.
 // The rate is determined by how fast fn completes (closed-loop control).
-// Once the duration elapses, the context passed to fn is cancelled.
+// Once the duration elapses, the context passed to fn is canceled.
 func ClosedLoop(ctx context.Context, workers int, duration time.Duration, fn func(context.Context, int) error) error {
 	var eg errgroup.Group
 	deadline := time.Now().Add(duration)
