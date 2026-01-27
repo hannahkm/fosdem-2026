@@ -94,12 +94,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [otlp, datadog, spanmetrics] # Change to [otlp] when disabling Datadog
+      exporters: [otlp, datadog, spanmetrics] # Change to [otlp, spanmetrics] when disabling Datadog
     metrics:
       receivers: [otlp, prometheus]
       processors: [batch, resource]
-      exporters: [prometheusremotewrite/grafana, datadog] # Change to [prometheusremotewrite/grafana] when disabling Datadog
+      exporters: [prometheus, prometheusremotewrite/grafana, datadog] # Change to [prometheus, prometheusremotewrite/grafana] when disabling Datadog
     metrics/spanmetrics:
       receivers: [spanmetrics]
       processors: [batch]
-      exporters: [prometheusremotewrite/grafana, datadog] # Change to [prometheusremotewrite/grafana] when disabling Datadog
+      exporters: [prometheus, prometheusremotewrite/grafana, datadog] # Change to [prometheus, prometheusremotewrite/grafana] when disabling Datadog
