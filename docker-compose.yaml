@@ -4,20 +4,6 @@ networks:
     name: fosdem2026
 
 services:
-  influxdb:
-    image: influxdb:2.7
-    ports:
-      - "8086:8086"
-    networks:
-      - fosdem2026
-    environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=fosdem
-      - DOCKER_INFLUXDB_INIT_ORG=fosdem
-      - DOCKER_INFLUXDB_INIT_BUCKET=fosdem2026
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=13NSkxbvAnGSbQIHAzWAQFsNVDXWHD94-NG2taWgmFCJ1FiLiFjjwNe_Vg37sKUc2Cn_kSWYMCR0egexhp3PRg==
-
   grafana:
     image: grafana/grafana:10.3.3
     ports:
@@ -30,8 +16,6 @@ services:
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
-    depends_on:
-      - influxdb
 
   postgres:
     image: postgres:15

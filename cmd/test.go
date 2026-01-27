@@ -271,7 +271,6 @@ func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
 	_ = run(dockerCommand, "ps") // best-effort status display
 	log.Info("✅ Services started!")
 	log.Info("   - Grafana: http://localhost:3000")
-	log.Info("   - InfluxDB: http://localhost:8086")
 	log.Info("   - Jaeger: http://localhost:16686")
 	log.Info("   - Prometheus: http://localhost:9090")
 
