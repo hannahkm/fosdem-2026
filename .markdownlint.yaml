@@ -6,8 +6,11 @@ MD010:
   spaces_per_tab: 4
 
 # Disabled for Marp presentation compatibility
+MD001: false  # Heading increment - presentations use h3 without h2
 MD013: false  # Line length - impractical for slides
 MD024: false  # Duplicate headings - normal in presentations
 MD025: false  # Multiple top-level headings in the same document
 MD033: false  # Inline HTML - required by Marp
 MD036: false  # Emphasis as heading - used for subtitles
+MD040: false  # Fenced code language - diagrams don't need language
+MD060: false  # Table column style - presentation tables
