@@ -11,13 +11,13 @@ style: |
     .columns {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.5rem;
+        gap: 1rem;
     }
     .comment {
         color: #888;
     }
     .medium {
-        font-size: 4em;
+        font-size: 3.5em;
     }
     .big {
         font-size: 5em;
@@ -108,6 +108,10 @@ style: |
     a {
         color: #0066cc;
         text-decoration: underline;
+    }
+    section p,
+    section li {
+        font-size: 0.8em;
     }
 ---
 
