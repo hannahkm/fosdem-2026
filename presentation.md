@@ -17,7 +17,7 @@ style: |
         color: #888;
     }
     .medium {
-        font-size: 4em;
+        font-size: 3.5em;
     }
     .big {
         font-size: 5em;
@@ -28,15 +28,17 @@ style: |
     .centered-table {
         display: flex;
         justify-content: center;
+        color: #aaa;
     }
     thead th {
         background-color: #e0e0e0;
+        color:rgb(16, 16, 16);
     }
     tbody tr {
         background-color: transparent !important;
     }
     .hl {
-        background-color: #ffde59;
+        background-color:rgb(221, 185, 41);
         padding: 0.1em 0;
     }
     .replace {
@@ -47,7 +49,7 @@ style: |
     }
     .replace .old {
         text-decoration: line-through;
-        color: #888;
+        color: #aaa;
     }
     .replace .new {
         font-weight: bold;
@@ -81,7 +83,7 @@ style: |
         left: auto;
         right: 70px;
         font-size: 0.8em;
-        color: #666;
+        color: #aaa;
     }
     header {
         top: 20px;
@@ -89,7 +91,7 @@ style: |
         left: 30px;
         right: auto;
         font-size: 0.6em;
-        color: #666;
+        color: #aaa;
     }
     footer {
         top: auto;
@@ -97,7 +99,7 @@ style: |
         left: 30px;
         right: auto;
         font-size: 0.6em;
-        color: #666;
+        color: #aaa;
     }
     .center {
         text-align: center;
@@ -107,13 +109,17 @@ style: |
         color: #0066cc;
         text-decoration: underline;
     }
+    section p,
+    section li {
+        font-size: 0.8em;
+    }
 ---
 
 <!-- _class: vcenter invert -->
 
 # How to Instrument Go Without Changing a Single Line of Code
 
-Hannah S. Kim, Kemal Akkoyun
+Hannah Kim, Kemal Akkoyun
 
 FOSDEM 2026
 
@@ -131,7 +137,7 @@ FOSDEM 2026
 
 # About Us
 
-**Hannah S. Kim**
+**Hannah Kim**
 
 - Software Engineer at Datadog
 - Working on Go observability
@@ -349,10 +355,6 @@ FOSDEM 2026
 
 </div>
 
-<div>
-
-</div>
-
 </div>
 
 **auto-instrumentation**: instrumenting your code (getting traces + data) without manual code changes
@@ -391,26 +393,19 @@ FOSDEM 2026
 
 ---
 
-<!-- _class: vcenter invert -->
-
-# What is auto-instrumentation?
-
----
-
 <!-- _class: vcenter -->
 
 # Runtime Approaches
 
-### RUN TIME
-
 - iovisor/gobpf
 - cilium/eBPF
 - OpenTelemetry Auto-Instrumentation
+- OpenTelemetry eBPF Instrumentation (OBI)
 - Hooking
     - Shared library injection
     - Binary trampolining
 
-<span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
+**eBPF**: extended Berkeley packet filter
 
 ---
 
@@ -419,17 +414,18 @@ FOSDEM 2026
 # How eBPF Works
 
 ```mermaid
-graph TB
+graph LR
     kernel[kernel]
     process[our process<br/>work]
 
-    process -->|hook| kernel
+    process --> kernel
 
-    style kernel fill:#f9f,stroke:#333,stroke-width:2px
-    style process fill:#bbf,stroke:#333,stroke-width:2px
+    style kernel fill:#f9f,stroke:#ccc,stroke-width:2px
+    style process fill:#bbf,stroke:#ccc,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-<span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
+**eBPF**: extended Berkeley packet filter
 
 ---
 
@@ -438,17 +434,117 @@ graph TB
 # How eBPF Works
 
 ```mermaid
-graph TB
+graph LR
     kernel[kernel<br/>eBPF]
     process[our process<br/>work]
+    hook[hook]
 
-    process -->|hook| kernel
+    process --> hook --> kernel
 
     style kernel fill:#f9f,stroke:#333,stroke-width:2px
+    style hook fill:#ffb,stroke:#ccc,stroke-width:2px
     style process fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-<span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
+**eBPF**: extended Berkeley packet filter
+
+---
+
+<!-- _class: vcenter invert -->
+
+# OpenTelemetry eBPF Instrumentation (OBI)
+
+---
+
+<!-- _class: vcenter -->
+
+# What is OBI?
+
+<div class="columns">
+
+<div>
+
+**OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
+
+- Uses eBPF to hook into Go runtime
+- Extracts telemetry without code modification
+- Part of OpenTelemetry ecosystem
+- Production-ready and vendor-neutral
+- Requires administrative privileges (root access)
+
+</div>
+<div>
+</div>
+</div>
+
+---
+
+<!-- _class: vcenter -->
+
+# What is OBI?
+
+<div class="columns">
+
+<div>
+
+**OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
+
+- Uses eBPF to hook into Go runtime
+- Extracts telemetry without code modification
+- Part of OpenTelemetry ecosystem
+- Production-ready and vendor-neutral
+- Requires administrative privileges (root access)
+
+</div>
+<div>
+
+```mermaid
+graph TB
+    app["Your Go Application<br/>(no changes needed)"]
+    ebpf[eBPF hooks]
+    sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
+    collector[OTel Collector]
+
+    app --> ebpf
+    ebpf --> sidecar
+    sidecar --> collector
+
+    style app fill:#bbf,stroke:#333,stroke-width:2px
+    style ebpf fill:#ffb,stroke:#333,stroke-width:2px
+    style sidecar fill:#bfb,stroke:#333,stroke-width:2px
+    style collector fill:#fbb,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
+```
+
+</div>
+
+</div>
+
+---
+
+<!-- _class: vcenter -->
+
+# OBI Configuration
+
+```yaml
+# obi-config.yaml
+open_port: 8080
+service:
+    name: fosdem-obi
+log_level: debug
+
+otel_traces_export:
+    endpoint: http://otel-collector:4318
+
+prometheus_export:
+    port: 9090
+    path: /metrics
+
+meter_provider:
+    features:
+        - application
+```
 
 ---
 
@@ -456,29 +552,10 @@ graph TB
 
 # Compile Time Approaches
 
-<div class="columns">
-
 <div>
-
-### COMPILE TIME
 
 - Datadog Orchestrion
 - OpenTelemetry Compile Time Instrumentation SIG
-
-</div>
-
-<div>
-
-### RUN TIME
-
-- iovisor/gobpf
-- cilium/eBPF
-- OpenTelemetry Auto-Instrumentation
-- Hooking
-    - Shared library injection
-    - Binary trampolining
-
-</div>
 
 </div>
 
@@ -504,8 +581,8 @@ source code → compile time → executable
                  AST/IR
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
@@ -521,8 +598,8 @@ source code → compile time → executable
               machine code
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
@@ -540,14 +617,14 @@ source code → compile time → executable
                  linking
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
 <!-- _class: vcenter -->
 
-# Orchestrion Example
+# Compile Time Flow
 
 ```
 source code → compile time → executable
@@ -563,159 +640,73 @@ source code → compile time → executable
 go run -toolexec 'orchestrion toolexec' .
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
-
----
-
-<!-- _class: vcenter invert -->
-
-# OpenTelemetry eBPF Instrumentation (OBI)
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
 <!-- _class: vcenter -->
 
-# What is OBI?
+# What is Orchestrion?
 
-**OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
+**Orchestrion** is a compile-time instrumentation approach that:
 
-- Uses eBPF to hook into Go runtime
-- Extracts telemetry without code modification
-- Part of OpenTelemetry ecosystem
-- Production-ready and vendor-neutral
-
----
-
-<!-- _class: vcenter -->
-
-# OBI Architecture
-
-```mermaid
-graph TB
-    app["Your Go Application<br/>(no changes needed)"]
-    sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
-    collector[OTel Collector]
-
-    app -->|eBPF hooks| sidecar
-    sidecar --> collector
-
-    style app fill:#bbf,stroke:#333,stroke-width:2px
-    style sidecar fill:#bfb,stroke:#333,stroke-width:2px
-    style collector fill:#fbb,stroke:#333,stroke-width:2px
-```
+- Traces the AST created during compile time
+- Injects Datadog instrumentation at specific nodes
+- Updates executable file without source code changes
+- Can be configured to add/remove instrumentation
+- Compatible with OpenTelemetry
 
 ---
 
 <!-- _class: vcenter -->
 
-# OBI Configuration
+# Orchestrion Configuration
 
 ```yaml
-# obi-config.yaml
-instrumentation:
-    http:
-        enabled: true
-        trace_headers: true
-    database:
-        enabled: true
-        capture_queries: true
-
-export:
-    endpoint: "otel-collector:4317"
-    protocol: grpc
+# orchestrion.yaml
+aspects:
+    - id: make spans
+      join-point:
+          all-of:
+              - package-name: main
+              - function-body:
+                    function:
+                        - name: main
+      advice:
+          - prepend-statements:
+                imports:
+                    otel: go.opentelemetry.io/otel
+                    context: context
+                template: |-
+                    tracer := otel.Tracer()
+                    _, span := tracer.Start(context.Background, "orchestrion.handler")
 ```
 
 ---
 
 <!-- _class: vcenter invert -->
 
-# How do they perform?
+# How do they compare?
 
 ---
 
 <!-- _class: vcenter -->
-
-# Check out the demo code
-
-```go
-mux := http.NewServeMux()
-mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-    handlers.HelloHandler(w, r)
-})
-```
-
-```go
-func POST(db *sql.DB, instrumentationType string, hasError bool) error {
-    query := `INSERT INTO instrumentation_logs (instrumentation,
-        error_status) VALUES ($1, $2)`
-    _, err := db.Exec(query, instrumentationType, hasError)
-    return err
-}
-```
-
----
-
-<!-- _class: vcenter -->
-
-# Load Testing Configuration
-
-```javascript
-stages: [
-    // avg load-testing
-    { duration: "15s", target: 100 }, // traffic ramp-up
-    { duration: "30s", target: 100 }, // hold steady
-    { duration: "15s", target: 0 }, // ramp-down to 0 users
-
-    // spike-testing
-    { duration: "2s", target: 1000 }, // sudden jump to 1000 users
-    { duration: "2s", target: 0 }, // drop down to 0 users
-];
-```
-
----
-
-<!-- _class: vcenter -->
-
-# Metrics Collection
-
-```go
-type CPUStats struct {
-    User   uint64 `json:"user"`
-    System uint64 `json:"system"`
-    Idle   uint64 `json:"idle"`
-    Total  uint64 `json:"total"`
-}
-
-type MemoryStats struct {
-    Total uint64 `json:"total"`
-    Used  uint64 `json:"used"`
-}
-
-type UptimeStats struct {
-    Milliseconds uint64 `json:"milliseconds"`
-}
-```
-
-<span style="font-size: 0.7em;">github.com/mackerelio/go-osstat</span>
-
----
-
-<!-- _class: vcenter -->
-
-# Approaches Compared
 
 <div class="centered-table">
 
-| Approach                   | Description               |
-| -------------------------- | ------------------------- |
-| **No Instrumentation**     | Baseline (no telemetry)   |
-| **Manual Instrumentation** | OpenTelemetry SDK         |
-| **Auto (eBPF)**            | OpenTelemetry eBPF        |
-| **Auto (OBI)**             | OTel eBPF Instrumentation |
-| **Auto (Orchestrion)**     | Compile-time using OTel   |
+| Approach           | CPU | Memory | # Errors |
+| ------------------ | --- | ------ | -------- |
+| Manual             |     |        |          |
+| Auto (eBPF)        |     |        |          |
+| Auto (OBI)         |     |        |          |
+| Auto (Orchestrion) |     |        |          |
 
 </div>
+
+```bash
+TODO(hannah): add numbers +/- to table above, add more columns as necessary
+```
 
 ---
 
@@ -750,71 +741,7 @@ type UptimeStats struct {
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
 | Auto (eBPF)        | ⚠           |           |          |             |
-| Auto (OBI)         |             |           |          |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         |          |             |
 | Auto (OBI)         | ⚠           |           |          |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        |             |
-| Auto (OBI)         | ⚠           | ⚠         |          |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
 | Auto (Orchestrion) | ⚠           |           |          |             |
 
 </div>
@@ -829,8 +756,8 @@ type UptimeStats struct {
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
+| Auto (eBPF)        | ⚠           | ⚠         |          |             |
+| Auto (OBI)         | ⚠           | ⚠         |          |             |
 | Auto (Orchestrion) | ⚠           | ✅        |          |             |
 
 </div>
@@ -845,9 +772,9 @@ type UptimeStats struct {
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (Orchestrion) | ⚠           | ✅        | ⚠        |             |
+| Auto (eBPF)        | ⚠           | ⚠         | ⚠        |             |
+| Auto (OBI)         | ⚠           | ⚠         | ⚠        |             |
+| Auto (Orchestrion) | ⚠           | ✅        | ✅       |             |
 
 </div>
 
@@ -861,9 +788,9 @@ type UptimeStats struct {
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (Orchestrion) | ⚠           | ✅        | ⚠        | ✅          |
+| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (Orchestrion) | ⚠           | ✅        | ✅       | ✅          |
 
 </div>
 
@@ -877,9 +804,9 @@ type UptimeStats struct {
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (Orchestrion) | ⚠           | ✅        | ⚠        | ✅          |
+| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (Orchestrion) | ⚠           | ✅        | ✅       | ✅          |
 
 </div>
 
@@ -932,17 +859,6 @@ Go Compile Time Instrumentation SIG
 
 - Tuesdays 12:30-1:30PM EST
 
-```mermaid
-graph LR
-    team[Go Team]
-    community[Go Community]
-
-    team <-->|collaborate| community
-
-    style team fill:#bbf,stroke:#333,stroke-width:2px
-    style community fill:#bfb,stroke:#333,stroke-width:2px
-```
-
 ---
 
 <!-- _class: vcenter invert -->
@@ -975,12 +891,6 @@ graph LR
 1. Instrumentation is helpful and important
 2. Auto-instrumentation is EASY
 3. What are YOU going to do next?
-
-<div style="margin-top: 30px; font-size: 0.9em;">
-
-Start instrumenting your apps and learning more about auto-instrumentation because it's cool and wouldn't it be nice to have more data?
-
-</div>
 
 ---
 
@@ -1021,12 +931,10 @@ Start instrumenting your apps and learning more about auto-instrumentation becau
 
 <div class="contact-info">
 
-**Hannah S. Kim**
+**Hannah Kim**
 
-- @hannahkm
 - hannahkm.github.io
 - linkedin.com/in/hannah-kim24/
-- <hannahs.kim@datadoghq.com>
 
 **Kemal Akkoyun**
 
