@@ -565,8 +565,18 @@ meter_provider:
 
 # Compile Time Flow
 
-```
-source code → compile time → executable
+```mermaid
+graph LR
+    A[source code] --> B
+    subgraph B[compile time]
+        direction LR
+    end
+    B --> F[executable]
+
+    style A fill:#bbf,stroke:#333,stroke-width:2px
+    style B fill:#ffb,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
 ---
@@ -575,10 +585,20 @@ source code → compile time → executable
 
 # Compile Time Flow
 
-```
-source code → compile time → executable
-                    ↓
-                 AST/IR
+```mermaid
+graph LR
+    A[source code] --> B
+    subgraph B[compile time]
+        direction LR
+        C[AST/IR]
+    end
+    B --> F[executable]
+
+    style A fill:#bbf,stroke:#333,stroke-width:2px
+    style B fill:#ffb,stroke:#333,stroke-width:2px
+    style C fill:#fbb,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
 **AST**: abstract syntax tree
@@ -590,31 +610,21 @@ source code → compile time → executable
 
 # Compile Time Flow
 
-```
-source code → compile time → executable
-                    ↓
-                 AST/IR
-                    ↓
-              machine code
-```
+```mermaid
+graph LR
+    A[source code] --> B
+    subgraph B[compile time]
+        direction LR
+        C[AST/IR] --> D[machine code]
+    end
+    B --> F[executable]
 
-**AST**: abstract syntax tree
-**IR**: intermediate representation
-
----
-
-<!-- _class: vcenter -->
-
-# Compile Time Flow
-
-```
-source code → compile time → executable
-                    ↓
-                 AST/IR
-                    ↓
-              machine code
-                    ↓
-                 linking
+    style A fill:#bbf,stroke:#333,stroke-width:2px
+    style B fill:#ffb,stroke:#333,stroke-width:2px
+    style C fill:#fbb,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
 **AST**: abstract syntax tree
@@ -626,14 +636,49 @@ source code → compile time → executable
 
 # Compile Time Flow
 
+```mermaid
+graph LR
+    A[source code] --> B
+    subgraph B[compile time]
+        direction LR
+        C[AST/IR] --> D[machine code] --> E[linking]
+    end
+    B --> F[executable]
+
+    style A fill:#bbf,stroke:#333,stroke-width:2px
+    style B fill:#ffb,stroke:#333,stroke-width:2px
+    style C fill:#fbb,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333,stroke-width:2px
+    style E fill:#fbb,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
-source code → compile time → executable
-                    ↓
-                 AST/IR
-                    ↓
-              machine code
-                    ↓
-                 linking
+
+**AST**: abstract syntax tree
+**IR**: intermediate representation
+
+---
+
+<!-- _class: vcenter -->
+
+# Compile Time Flow
+
+```mermaid
+graph LR
+    A[source code] --> B
+    subgraph B[compile time]
+        direction LR
+        C[AST/IR] --> D[machine code] --> E[linking]
+    end
+    B --> F[executable]
+
+    style A fill:#bbf,stroke:#333,stroke-width:2px
+    style B fill:#ffb,stroke:#333,stroke-width:2px
+    style C fill:#fbb,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333,stroke-width:2px
+    style E fill:#fbb,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
 ```bash
