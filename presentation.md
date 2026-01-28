@@ -457,6 +457,10 @@ graph LR
 
 # What is OBI?
 
+<div class="columns">
+
+<div>
+
 **OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
 
 - Uses eBPF to hook into Go runtime
@@ -465,11 +469,31 @@ graph LR
 - Production-ready and vendor-neutral
 - Requires administrative privileges (root access)
 
+</div>
+<div>
+</div>
+</div>
+
 ---
 
 <!-- _class: vcenter -->
 
-# OBI Architecture
+# What is OBI?
+
+<div class="columns">
+
+<div>
+
+**OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
+
+- Uses eBPF to hook into Go runtime
+- Extracts telemetry without code modification
+- Part of OpenTelemetry ecosystem
+- Production-ready and vendor-neutral
+- Requires administrative privileges (root access)
+
+</div>
+<div>
 
 ```mermaid
 graph TB
@@ -488,6 +512,10 @@ graph TB
     style collector fill:#fbb,stroke:#333,stroke-width:2px
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
+
+</div>
+
+</div>
 
 ---
 
