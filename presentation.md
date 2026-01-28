@@ -28,9 +28,11 @@ style: |
     .centered-table {
         display: flex;
         justify-content: center;
+        color: #aaa;
     }
     thead th {
         background-color: #e0e0e0;
+        color: #fff
     }
     tbody tr {
         background-color: transparent !important;
@@ -349,10 +351,6 @@ FOSDEM 2026
 
 </div>
 
-<div>
-
-</div>
-
 </div>
 
 **auto-instrumentation**: instrumenting your code (getting traces + data) without manual code changes
@@ -403,7 +401,7 @@ FOSDEM 2026
     - Shared library injection
     - Binary trampolining
 
-<span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
+**eBPF**: extended Berkeley packet filter
 
 ---
 
@@ -412,20 +410,18 @@ FOSDEM 2026
 # How eBPF Works
 
 ```mermaid
-graph TB
+graph LR
     kernel[kernel]
     process[our process<br/>work]
-    hook[hook]
 
-    process --> hook --> kernel
+    process --> kernel
 
     style kernel fill:#f9f,stroke:#ccc,stroke-width:2px
-    style hook fill:#ffb,stroke:#ccc,stroke-width:2px
     style process fill:#bbf,stroke:#ccc,stroke-width:2px
-    linkStyle 0 stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-<span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
+**eBPF**: extended Berkeley packet filter
 
 ---
 
@@ -434,7 +430,7 @@ graph TB
 # How eBPF Works
 
 ```mermaid
-graph TB
+graph LR
     kernel[kernel<br/>eBPF]
     process[our process<br/>work]
     hook[hook]
@@ -444,10 +440,10 @@ graph TB
     style kernel fill:#f9f,stroke:#333,stroke-width:2px
     style hook fill:#ffb,stroke:#ccc,stroke-width:2px
     style process fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle 0 stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-<span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
+**eBPF**: extended Berkeley packet filter
 
 ---
 
@@ -489,7 +485,7 @@ graph TB
     style ebpf fill:#ffb,stroke:#333,stroke-width:2px
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
-    linkStyle 0 stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
 ---
@@ -548,8 +544,8 @@ source code → compile time → executable
                  AST/IR
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
@@ -565,8 +561,8 @@ source code → compile time → executable
               machine code
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
@@ -584,8 +580,8 @@ source code → compile time → executable
                  linking
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
@@ -607,8 +603,8 @@ source code → compile time → executable
 go run -toolexec 'orchestrion toolexec' .
 ```
 
-<span style="font-size: 0.8em;">**AST**: abstract syntax tree</span>
-<span style="font-size: 0.8em;">**IR**: intermediate representation</span>
+**AST**: abstract syntax tree
+**IR**: intermediate representation
 
 ---
 
@@ -620,12 +616,16 @@ go run -toolexec 'orchestrion toolexec' .
 
 <!-- _class: vcenter -->
 
+<div class="centered-table">
+
 | Approach           | CPU | Memory | # Errors |
 | ------------------ | --- | ------ | -------- |
 | Manual             |     |        |          |
 | Auto (eBPF)        |     |        |          |
 | Auto (OBI)         |     |        |          |
 | Auto (Orchestrion) |     |        |          |
+
+</div>
 
 ```bash
 TODO(hannah): add numbers +/- to table above, add more columns if necessary
@@ -855,7 +855,7 @@ graph LR
 
     style team fill:#bbf,stroke:#333,stroke-width:2px
     style community fill:#bfb,stroke:#333,stroke-width:2px
-    linkStyle 0 stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
 ---
