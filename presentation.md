@@ -566,9 +566,10 @@ meter_provider:
 # Compile Time Flow
 
 ```mermaid
-graph RL
+graph LR
     A[source code] --> B
     subgraph B[compile time]
+        direction LR
     end
     B --> F[executable]
 
@@ -585,9 +586,10 @@ graph RL
 # Compile Time Flow
 
 ```mermaid
-graph RL
+graph LR
     A[source code] --> B
     subgraph B[compile time]
+        direction LR
         C[AST/IR]
     end
     B --> F[executable]
@@ -609,9 +611,10 @@ graph RL
 # Compile Time Flow
 
 ```mermaid
-graph RL
+graph LR
     A[source code] --> B
     subgraph B[compile time]
+        direction LR
         C[AST/IR] --> D[machine code]
     end
     B --> F[executable]
@@ -634,9 +637,10 @@ graph RL
 # Compile Time Flow
 
 ```mermaid
-graph RL
+graph LR
     A[source code] --> B
     subgraph B[compile time]
+        direction LR
         C[AST/IR] --> D[machine code] --> E[linking]
     end
     B --> F[executable]
@@ -660,9 +664,10 @@ graph RL
 # Compile Time Flow
 
 ```mermaid
-graph RL
+graph LR
     A[source code] --> B
     subgraph B[compile time]
+        direction LR
         C[AST/IR] --> D[machine code] --> E[linking]
     end
     B --> F[executable]
