@@ -113,15 +113,6 @@ style: |
     section li {
         font-size: 0.8em;
     }
-    .centered-mermaid {
-        display: flex;
-        justify-content: center;
-        width: 100% !important;
-    }
-    .centered-mermaid svg {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
 ---
 
 <!-- _class: vcenter invert -->
@@ -422,8 +413,6 @@ FOSDEM 2026
 
 # How eBPF Works
 
-<div class="centered-mermaid">
-
 ```mermaid
 graph LR
     kernel[kernel]
@@ -436,8 +425,6 @@ graph LR
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-</div>
-
 **eBPF**: extended Berkeley packet filter
 
 ---
@@ -445,8 +432,6 @@ graph LR
 <!-- _class: vcenter -->
 
 # How eBPF Works
-
-<div class="centered-mermaid">
 
 ```mermaid
 graph LR
@@ -461,8 +446,6 @@ graph LR
     style process fill:#bbf,stroke:#333,stroke-width:2px
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
-
-</div>
 
 **eBPF**: extended Berkeley packet filter
 
@@ -514,7 +497,7 @@ graph LR
 - Requires administrative privileges (root access)
 
 </div>
-<div class="centered-mermaid">
+<div>
 
 ```mermaid
 graph TB
@@ -582,8 +565,6 @@ meter_provider:
 
 # Compile Time Flow
 
-<div class="centered-mermaid">
-
 ```mermaid
 graph LR
     A[source code] --> B
@@ -598,15 +579,11 @@ graph LR
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-</div>
-
 ---
 
 <!-- _class: vcenter -->
 
 # Compile Time Flow
-
-<div class="centered-mermaid">
 
 ```mermaid
 graph LR
@@ -624,8 +601,6 @@ graph LR
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-</div>
-
 **AST**: abstract syntax tree
 **IR**: intermediate representation
 
@@ -634,8 +609,6 @@ graph LR
 <!-- _class: vcenter -->
 
 # Compile Time Flow
-
-<div class="centered-mermaid">
 
 ```mermaid
 graph LR
@@ -654,8 +627,6 @@ graph LR
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-</div>
-
 **AST**: abstract syntax tree
 **IR**: intermediate representation
 
@@ -664,8 +635,6 @@ graph LR
 <!-- _class: vcenter -->
 
 # Compile Time Flow
-
-<div class="centered-mermaid">
 
 ```mermaid
 graph LR
@@ -685,8 +654,6 @@ graph LR
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-</div>
-
 **AST**: abstract syntax tree
 **IR**: intermediate representation
 
@@ -695,8 +662,6 @@ graph LR
 <!-- _class: vcenter -->
 
 # Compile Time Flow
-
-<div class="centered-mermaid">
 
 ```mermaid
 graph LR
@@ -715,8 +680,6 @@ graph LR
     style F fill:#bbf,stroke:#333,stroke-width:2px
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
-
-</div>
 
 ```bash
 go run -toolexec 'orchestrion toolexec' .
