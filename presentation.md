@@ -594,10 +594,12 @@ go run -toolexec 'orchestrion toolexec' .
 ```mermaid
 graph TB
     app["Your Go Application<br/>(no changes needed)"]
+    ebpf[eBPF hooks]
     sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
     collector[OTel Collector]
 
-    app -->| eBPF hooks | sidecar
+    app --> ebpf
+    ebpf --> sidecar
     sidecar --> collector
 
     style app fill:#bbf,stroke:#333,stroke-width:2px
