@@ -47,7 +47,7 @@ style: |
     }
     .replace .old {
         text-decoration: line-through;
-        color: #888;
+        color: #aaa;
     }
     .replace .new {
         font-weight: bold;
@@ -81,7 +81,7 @@ style: |
         left: auto;
         right: 70px;
         font-size: 0.8em;
-        color: #666;
+        color: #aaa;
     }
     header {
         top: 20px;
@@ -89,7 +89,7 @@ style: |
         left: 30px;
         right: auto;
         font-size: 0.6em;
-        color: #666;
+        color: #aaa;
     }
     footer {
         top: auto;
@@ -97,7 +97,7 @@ style: |
         left: 30px;
         right: auto;
         font-size: 0.6em;
-        color: #666;
+        color: #aaa;
     }
     .center {
         text-align: center;
@@ -425,8 +425,8 @@ graph TB
 
     process -->|hook| kernel
 
-    style kernel fill:#f9f,stroke:#333,stroke-width:2px
-    style process fill:#bbf,stroke:#333,stroke-width:2px
+    style kernel fill:#f9f,stroke:#ccc,stroke-width:2px
+    style process fill:#bbf,stroke:#ccc,stroke-width:2px
 ```
 
 <span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
@@ -597,7 +597,7 @@ graph TB
     sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
     collector[OTel Collector]
 
-    app -->|eBPF hooks| sidecar
+    app -->| eBPF hooks | sidecar
     sidecar --> collector
 
     style app fill:#bbf,stroke:#333,stroke-width:2px
@@ -1023,10 +1023,8 @@ Start instrumenting your apps and learning more about auto-instrumentation becau
 
 **Hannah S. Kim**
 
-- @hannahkm
 - hannahkm.github.io
 - linkedin.com/in/hannah-kim24/
-- <hannahs.kim@datadoghq.com>
 
 **Kemal Akkoyun**
 
