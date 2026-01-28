@@ -118,6 +118,10 @@ style: |
         justify-content: center;
         width: 100% !important;
     }
+    .centered-mermaid svg {
+        max-width: 100%;
+        height: auto;
+    }
 ---
 
 <!-- _class: vcenter invert -->
