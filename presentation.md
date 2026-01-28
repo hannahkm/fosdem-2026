@@ -415,11 +415,14 @@ FOSDEM 2026
 graph TB
     kernel[kernel]
     process[our process<br/>work]
+    hook[hook]
 
-    process -->|hook| kernel
+    process --> hook --> kernel
 
     style kernel fill:#f9f,stroke:#ccc,stroke-width:2px
+    style hook fill:#ffb,stroke:#ccc,stroke-width:2px
     style process fill:#bbf,stroke:#ccc,stroke-width:2px
+    linkStyle 0 stroke:#aaa,stroke-width:2px
 ```
 
 <span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
@@ -434,11 +437,14 @@ graph TB
 graph TB
     kernel[kernel<br/>eBPF]
     process[our process<br/>work]
+    hook[hook]
 
-    process -->|hook| kernel
+    process --> hook --> kernel
 
     style kernel fill:#f9f,stroke:#333,stroke-width:2px
+    style hook fill:#ffb,stroke:#ccc,stroke-width:2px
     style process fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle 0 stroke:#aaa,stroke-width:2px
 ```
 
 <span style="font-size: 0.8em;">**eBPF**: extended Berkeley packet filter</span>
@@ -480,11 +486,11 @@ graph TB
     sidecar --> collector
 
     style app fill:#bbf,stroke:#333,stroke-width:2px
-    style ebpf fill:#bfb,stroke:#333,stroke-width:2px
+    style ebpf fill:#ffb,stroke:#333,stroke-width:2px
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
+    linkStyle 0 stroke:#aaa,stroke-width:2px
 ```
-
 ---
 
 <!-- _class: vcenter -->
@@ -848,6 +854,7 @@ graph LR
 
     style team fill:#bbf,stroke:#333,stroke-width:2px
     style community fill:#bfb,stroke:#333,stroke-width:2px
+    linkStyle 0 stroke:#aaa,stroke-width:2px
 ```
 
 ---
