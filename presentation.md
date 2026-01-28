@@ -484,6 +484,7 @@ graph TB
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
 ```
+
 ---
 
 <!-- _class: vcenter -->
@@ -612,12 +613,12 @@ go run -toolexec 'orchestrion toolexec' .
 
 <!-- _class: vcenter -->
 
-| Approach           | CPU         | Memory    | # Errors |
-| ------------------ | ----------- | --------- | -------- |
-| Manual             |             |           |          |
-| Auto (eBPF)        |             |           |          |
-| Auto (OBI)         |             |           |          |
-| Auto (Orchestrion) |             |           |          |
+| Approach           | CPU | Memory | # Errors |
+| ------------------ | --- | ------ | -------- |
+| Manual             |     |        |          |
+| Auto (eBPF)        |     |        |          |
+| Auto (OBI)         |     |        |          |
+| Auto (Orchestrion) |     |        |          |
 
 ```bash
 TODO(hannah): add numbers +/- to table above, add more columns if necessary
