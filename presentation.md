@@ -32,13 +32,13 @@ style: |
     }
     thead th {
         background-color: #e0e0e0;
-        color: #fff
+        color:rgb(16, 16, 16);
     }
     tbody tr {
         background-color: transparent !important;
     }
     .hl {
-        background-color: #ffde59;
+        background-color:rgb(221, 185, 41);
         padding: 0.1em 0;
     }
     .replace {
@@ -463,6 +463,7 @@ graph LR
 - Extracts telemetry without code modification
 - Part of OpenTelemetry ecosystem
 - Production-ready and vendor-neutral
+- Requires administrative privileges (root access)
 
 ---
 
@@ -496,17 +497,21 @@ graph TB
 
 ```yaml
 # obi-config.yaml
-instrumentation:
-    http:
-        enabled: true
-        trace_headers: true
-    database:
-        enabled: true
-        capture_queries: true
+open_port: 8080
+service:
+    name: fosdem-obi
+log_level: debug
 
-export:
-    endpoint: "otel-collector:4317"
-    protocol: grpc
+otel_traces_export:
+    endpoint: http://otel-collector:4318
+
+prometheus_export:
+    port: 9090
+    path: /metrics
+
+meter_provider:
+    features:
+        - application
 ```
 
 ---
@@ -587,7 +592,7 @@ source code → compile time → executable
 
 <!-- _class: vcenter -->
 
-# Orchestrion Example
+# Compile Time Flow
 
 ```
 source code → compile time → executable
@@ -605,6 +610,46 @@ go run -toolexec 'orchestrion toolexec' .
 
 **AST**: abstract syntax tree
 **IR**: intermediate representation
+
+---
+
+<!-- _class: vcenter -->
+
+# What is Orchestrion?
+
+**Orchestrion** is a compile-time instrumentation approach that:
+
+- Traces the AST created during compile time
+- Injects Datadog instrumentation at specific nodes
+- Updates executable file without source code changes
+- Can be configured to add/remove instrumentation
+- Compatible with OpenTelemetry
+
+---
+
+<!-- _class: vcenter -->
+
+# Orchestrion Configuration
+
+```yaml
+# orchestrion.yaml
+aspects:
+    - id: make spans
+      join-point:
+          all-of:
+              - package-name: main
+              - function-body:
+                    function:
+                        - name: main
+      advice:
+          - prepend-statements:
+                imports:
+                    otel: go.opentelemetry.io/otel
+                    context: context
+                template: |-
+                    tracer := otel.Tracer()
+                    _, span := tracer.Start(context.Background, "orchestrion.handler")
+```
 
 ---
 
@@ -628,7 +673,7 @@ go run -toolexec 'orchestrion toolexec' .
 </div>
 
 ```bash
-TODO(hannah): add numbers +/- to table above, add more columns if necessary
+TODO(hannah): add numbers +/- to table above, add more columns as necessary
 ```
 
 ---
@@ -664,71 +709,7 @@ TODO(hannah): add numbers +/- to table above, add more columns if necessary
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
 | Auto (eBPF)        | ⚠           |           |          |             |
-| Auto (OBI)         |             |           |          |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         |          |             |
 | Auto (OBI)         | ⚠           |           |          |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        |             |
-| Auto (OBI)         | ⚠           | ⚠         |          |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        |             |
-| Auto (Orchestrion) |             |           |          |             |
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-# Comparison Matrix
-
-<div class="centered-table">
-
-| Approach           | Performance | Stability | Security | Portability |
-| ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
 | Auto (Orchestrion) | ⚠           |           |          |             |
 
 </div>
@@ -743,8 +724,8 @@ TODO(hannah): add numbers +/- to table above, add more columns if necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
+| Auto (eBPF)        | ⚠           | ⚠         |          |             |
+| Auto (OBI)         | ⚠           | ⚠         |          |             |
 | Auto (Orchestrion) | ⚠           | ✅        |          |             |
 
 </div>
@@ -759,9 +740,9 @@ TODO(hannah): add numbers +/- to table above, add more columns if necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (Orchestrion) | ⚠           | ✅        | ⚠        |             |
+| Auto (eBPF)        | ⚠           | ⚠         | ⚠        |             |
+| Auto (OBI)         | ⚠           | ⚠         | ⚠        |             |
+| Auto (Orchestrion) | ⚠           | ✅        | ✅       |             |
 
 </div>
 
@@ -775,9 +756,9 @@ TODO(hannah): add numbers +/- to table above, add more columns if necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (Orchestrion) | ⚠           | ✅        | ⚠        | ✅          |
+| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (Orchestrion) | ⚠           | ✅        | ✅       | ✅          |
 
 </div>
 
@@ -791,9 +772,9 @@ TODO(hannah): add numbers +/- to table above, add more columns if necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ✅          |
-| Auto (Orchestrion) | ⚠           | ✅        | ⚠        | ✅          |
+| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (Orchestrion) | ⚠           | ✅        | ✅       | ✅          |
 
 </div>
 
@@ -846,18 +827,6 @@ Go Compile Time Instrumentation SIG
 
 - Tuesdays 12:30-1:30PM EST
 
-```mermaid
-graph LR
-    team[Go Team]
-    community[Go Community]
-
-    team <-->|collaborate| community
-
-    style team fill:#bbf,stroke:#333,stroke-width:2px
-    style community fill:#bfb,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
-```
-
 ---
 
 <!-- _class: vcenter invert -->
@@ -890,12 +859,6 @@ graph LR
 1. Instrumentation is helpful and important
 2. Auto-instrumentation is EASY
 3. What are YOU going to do next?
-
-<div style="margin-top: 30px; font-size: 0.9em;">
-
-Start instrumenting your apps and learning more about auto-instrumentation because it's cool and wouldn't it be nice to have more data?
-
-</div>
 
 ---
 
