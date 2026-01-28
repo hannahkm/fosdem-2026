@@ -5,6 +5,33 @@ receivers:
         endpoint: 0.0.0.0:4318
       grpc:
         endpoint: 0.0.0.0:4317
+  hostmetrics:
+    collection_interval: 5s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      disk:
+      load:
+      filesystem:
+        exclude_mount_points:
+          mount_points: ["/dev/*", "/proc/*", "/sys/*", "/run/*"]
+          match_type: regexp
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      network:
+      paging:
+      processes:
+      process:
+        include:
+          match_type: regexp
+          names: [".*"]  # All processes, or filter specific ones
+        mute_process_exe_error: true
+        mute_process_io_error: true
+        mute_process_user_error: true
   prometheus:
     config:
       scrape_configs:

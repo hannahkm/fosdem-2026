@@ -39,6 +39,11 @@ var CmdRun = &cli.Command{
 			Usage: "The scenario to run",
 			Value: "default",
 		},
+		&cli.StringFlag{
+			Name:  "send to",
+			Usage: "The backend to send traces and metrics to",
+			Value: "datadog",
+		},
 	},
 	Action: func(ctx context.Context, c *cli.Command) error {
 		log, cancel := NewLogger(ctx)

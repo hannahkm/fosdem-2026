@@ -5,7 +5,7 @@ log_level: debug
 
 otel_traces_export:
   endpoint: http://otel-collector:4318
-  
+
 prometheus_export:
   port: 9090
   path: /metrics
@@ -13,6 +13,7 @@ prometheus_export:
 meter_provider:
   features:
     - application
+    - network
 
 attributes:
   kubernetes:
