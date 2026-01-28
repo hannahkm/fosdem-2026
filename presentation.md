@@ -391,21 +391,14 @@ FOSDEM 2026
 
 ---
 
-<!-- _class: vcenter invert -->
-
-# What is auto-instrumentation?
-
----
-
 <!-- _class: vcenter -->
 
 # Runtime Approaches
 
-### RUN TIME
-
 - iovisor/gobpf
 - cilium/eBPF
 - OpenTelemetry Auto-Instrumentation
+- OpenTelemetry eBPF Instrumentation (OBI)
 - Hooking
     - Shared library injection
     - Binary trampolining
@@ -452,33 +445,75 @@ graph TB
 
 ---
 
+<!-- _class: vcenter invert -->
+
+# OpenTelemetry eBPF Instrumentation (OBI)
+
+---
+
+<!-- _class: vcenter -->
+
+# What is OBI?
+
+**OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
+
+- Uses eBPF to hook into Go runtime
+- Extracts telemetry without code modification
+- Part of OpenTelemetry ecosystem
+- Production-ready and vendor-neutral
+
+---
+
+<!-- _class: vcenter -->
+
+# OBI Architecture
+
+```mermaid
+graph TB
+    app["Your Go Application<br/>(no changes needed)"]
+    ebpf[eBPF hooks]
+    sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
+    collector[OTel Collector]
+
+    app --> ebpf
+    ebpf --> sidecar
+    sidecar --> collector
+
+    style app fill:#bbf,stroke:#333,stroke-width:2px
+    style sidecar fill:#bfb,stroke:#333,stroke-width:2px
+    style collector fill:#fbb,stroke:#333,stroke-width:2px
+```
+---
+
+<!-- _class: vcenter -->
+
+# OBI Configuration
+
+```yaml
+# obi-config.yaml
+instrumentation:
+    http:
+        enabled: true
+        trace_headers: true
+    database:
+        enabled: true
+        capture_queries: true
+
+export:
+    endpoint: "otel-collector:4317"
+    protocol: grpc
+```
+
+---
+
 <!-- _class: vcenter -->
 
 # Compile Time Approaches
 
-<div class="columns">
-
 <div>
-
-### COMPILE TIME
 
 - Datadog Orchestrion
 - OpenTelemetry Compile Time Instrumentation SIG
-
-</div>
-
-<div>
-
-### RUN TIME
-
-- iovisor/gobpf
-- cilium/eBPF
-- OpenTelemetry Auto-Instrumentation
-- Hooking
-    - Shared library injection
-    - Binary trampolining
-
-</div>
 
 </div>
 
@@ -570,154 +605,22 @@ go run -toolexec 'orchestrion toolexec' .
 
 <!-- _class: vcenter invert -->
 
-# OpenTelemetry eBPF Instrumentation (OBI)
+# How do they compare?
 
 ---
 
 <!-- _class: vcenter -->
 
-# What is OBI?
+| Approach           | CPU         | Memory    | # Errors |
+| ------------------ | ----------- | --------- | -------- |
+| Manual             |             |           |          |
+| Auto (eBPF)        |             |           |          |
+| Auto (OBI)         |             |           |          |
+| Auto (Orchestrion) |             |           |          |
 
-**OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
-
-- Uses eBPF to hook into Go runtime
-- Extracts telemetry without code modification
-- Part of OpenTelemetry ecosystem
-- Production-ready and vendor-neutral
-
----
-
-<!-- _class: vcenter -->
-
-# OBI Architecture
-
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'background': '#2a2a3d', 'primaryTextColor': '#e0e0e0', 'lineColor': '#aaa' }}}%%
-graph TB
-    app["Your Go Application<br/>(no changes needed)"]
-    ebpf[eBPF hooks]
-    sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
-    collector[OTel Collector]
-
-    app --> ebpf
-    ebpf --> sidecar
-    sidecar --> collector
-
-    style app fill:#bbf,stroke:#333,stroke-width:2px
-    style sidecar fill:#bfb,stroke:#333,stroke-width:2px
-    style collector fill:#fbb,stroke:#333,stroke-width:2px
+```bash
+TODO(hannah): add numbers +/- to table above, add more columns if necessary
 ```
----
-
-<!-- _class: vcenter -->
-
-# OBI Configuration
-
-```yaml
-# obi-config.yaml
-instrumentation:
-    http:
-        enabled: true
-        trace_headers: true
-    database:
-        enabled: true
-        capture_queries: true
-
-export:
-    endpoint: "otel-collector:4317"
-    protocol: grpc
-```
-
----
-
-<!-- _class: vcenter invert -->
-
-# How do they perform?
-
----
-
-<!-- _class: vcenter -->
-
-# Check out the demo code
-
-```go
-mux := http.NewServeMux()
-mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-    handlers.HelloHandler(w, r)
-})
-```
-
-```go
-func POST(db *sql.DB, instrumentationType string, hasError bool) error {
-    query := `INSERT INTO instrumentation_logs (instrumentation,
-        error_status) VALUES ($1, $2)`
-    _, err := db.Exec(query, instrumentationType, hasError)
-    return err
-}
-```
-
----
-
-<!-- _class: vcenter -->
-
-# Load Testing Configuration
-
-```javascript
-stages: [
-    // avg load-testing
-    { duration: "15s", target: 100 }, // traffic ramp-up
-    { duration: "30s", target: 100 }, // hold steady
-    { duration: "15s", target: 0 }, // ramp-down to 0 users
-
-    // spike-testing
-    { duration: "2s", target: 1000 }, // sudden jump to 1000 users
-    { duration: "2s", target: 0 }, // drop down to 0 users
-];
-```
-
----
-
-<!-- _class: vcenter -->
-
-# Metrics Collection
-
-```go
-type CPUStats struct {
-    User   uint64 `json:"user"`
-    System uint64 `json:"system"`
-    Idle   uint64 `json:"idle"`
-    Total  uint64 `json:"total"`
-}
-
-type MemoryStats struct {
-    Total uint64 `json:"total"`
-    Used  uint64 `json:"used"`
-}
-
-type UptimeStats struct {
-    Milliseconds uint64 `json:"milliseconds"`
-}
-```
-
-<span style="font-size: 0.7em;">github.com/mackerelio/go-osstat</span>
-
----
-
-<!-- _class: vcenter -->
-
-# Approaches Compared
-
-<div class="centered-table">
-
-| Approach                   | Description               |
-| -------------------------- | ------------------------- |
-| **No Instrumentation**     | Baseline (no telemetry)   |
-| **Manual Instrumentation** | OpenTelemetry SDK         |
-| **Auto (eBPF)**            | OpenTelemetry eBPF        |
-| **Auto (OBI)**             | OTel eBPF Instrumentation |
-| **Auto (Orchestrion)**     | Compile-time using OTel   |
-
-</div>
 
 ---
 
