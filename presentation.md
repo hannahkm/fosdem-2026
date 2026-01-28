@@ -119,7 +119,7 @@ style: |
 
 # How to Instrument Go Without Changing a Single Line of Code
 
-Hannah S. Kim, Kemal Akkoyun
+Hannah Kim, Kemal Akkoyun
 
 FOSDEM 2026
 
@@ -137,7 +137,7 @@ FOSDEM 2026
 
 # About Us
 
-**Hannah S. Kim**
+**Hannah Kim**
 
 - Software Engineer at Datadog
 - Working on Go observability
@@ -931,7 +931,7 @@ Go Compile Time Instrumentation SIG
 
 <div class="contact-info">
 
-**Hannah S. Kim**
+**Hannah Kim**
 
 - hannahkm.github.io
 - linkedin.com/in/hannah-kim24/
