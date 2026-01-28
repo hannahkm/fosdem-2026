@@ -480,6 +480,7 @@ graph TB
     sidecar --> collector
 
     style app fill:#bbf,stroke:#333,stroke-width:2px
+    style ebpf fill:#bfb,stroke:#333,stroke-width:2px
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
 ```
