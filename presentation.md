@@ -592,6 +592,7 @@ go run -toolexec 'orchestrion toolexec' .
 # OBI Architecture
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#2a2a3d', 'primaryTextColor': '#e0e0e0', 'lineColor': '#aaa' }}}%%
 graph TB
     app["Your Go Application<br/>(no changes needed)"]
     ebpf[eBPF hooks]
@@ -606,7 +607,6 @@ graph TB
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
 ```
-
 ---
 
 <!-- _class: vcenter -->
