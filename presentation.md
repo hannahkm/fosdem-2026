@@ -116,6 +116,7 @@ style: |
     .centered-mermaid {
         display: flex;
         justify-content: center;
+        width: 100% !important;
     }
 ---
 
