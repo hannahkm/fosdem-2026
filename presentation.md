@@ -25,6 +25,9 @@ style: |
     table {
         font-size: 0.7em;
     }
+    td {
+        vertical-align: middle;
+    }
     .centered-table {
         display: flex;
         justify-content: center;
@@ -113,6 +116,9 @@ style: |
     section li {
         font-size: 0.8em;
     }
+    .hidden {
+        visibility: hidden;
+    }
 ---
 
 <!-- _class: vcenter invert -->
@@ -122,32 +128,6 @@ style: |
 Hannah Kim, Kemal Akkoyun
 
 FOSDEM 2026
-
----
-
-<!-- paginate: true -->
-
-<!-- _class: vcenter invert -->
-
-# WHAT IS AUTO-INSTRUMENTATION
-
----
-
-<!-- _class: vcenter -->
-
-# About Us
-
-**Hannah Kim**
-
-- Software Engineer at Datadog
-- Working on Go observability
-- GopherCon US 2025 speaker
-
-**Kemal Akkoyun**
-
-- Staff Engineer at Datadog
-- Observability and performance tooling
-- Go enthusiast
 
 ---
 
@@ -165,37 +145,13 @@ FOSDEM 2026
 
 ## your application
 
-</div>
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-<div class="vcenter">
-
-<div style="text-align: center;">
-
-## your application → your backend
-
-</div>
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-<div class="vcenter">
-
-<div style="text-align: center;">
-
-## your application → your backend
+<div class="hidden">
 
 ### ???
 
 ### ???
+
+</div>
 
 </div>
 
@@ -211,61 +167,59 @@ FOSDEM 2026
 
 ## your application → your backend
 
+<div class="hidden">
+
 ### ???
 
 ### ???
+
+</div>
+
+</div>
+
+</div>
+
+---
+
+<!-- _class: vcenter -->
+
+<div class="vcenter">
+
+<div style="text-align: center;">
+
+## your application → your backend
+
+### ???
+
+### ???
+
+</div>
+
+</div>
+
+---
+
+<!-- _class: vcenter -->
+
+<div class="columns">
+
+<div>
+
+## your application → your backend
+
+### ???
+
+### ???
+
+</div>
+
+<div>
 
 ### **LOGS**
 
 (what happened)
 
-</div>
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-<div class="vcenter">
-
-<div style="text-align: center;">
-
-## your application → your backend
-
-### ???
-
-### ???
-
-### **LOGS**
-
-(what happened)
-
-### **METRICS**
-
-(how much/fast things happened)
-
-</div>
-
-</div>
-
----
-
-<!-- _class: vcenter -->
-
-<div class="vcenter">
-
-<div style="text-align: center;">
-
-## your application → your backend
-
-### ???
-
-### ???
-
-### **LOGS**
-
-(what happened)
+<div class="hidden">
 
 ### **METRICS**
 
@@ -281,9 +235,79 @@ FOSDEM 2026
 
 ---
 
+<!-- _class: vcenter -->
+
+<div class="columns">
+
+<div>
+
+## your application → your backend
+
+### ???
+
+### ???
+
+</div>
+
+<div>
+
+### **LOGS**
+
+(what happened)
+
+### **METRICS**
+
+(how much/fast things happened)
+
+<div class="hidden">
+
+### **TRACES**
+
+(how things happened)
+
+</div>
+
+</div>
+
+---
+
+<!-- _class: vcenter -->
+
+<div class="columns">
+
+<div>
+
+## your application → your backend
+
+### ???
+
+### ???
+
+</div>
+
+<div>
+
+### **LOGS**
+
+(what happened)
+
+### **METRICS**
+
+(how much/fast things happened)
+
+### **TRACES**
+
+(how things happened)
+
+</div>
+
+---
+
+<!-- paginate: true -->
+
 <!-- _class: vcenter invert -->
 
-# What is auto-instrumentation?
+# WHAT IS AUTO-INSTRUMENTATION? 🤔
 
 ---
 
@@ -291,51 +315,15 @@ FOSDEM 2026
 
 # What is auto-instrumentation?
 
-1. I want to know more about my code
+1) I want to know more about my code
+2) I need to instrument it, but I'm too lazy to do it myself
+3) ???
 
----
+<div class="hidden">
 
-<!-- _class: vcenter -->
+<span class="big">Profit 💸💸💸</span>
 
-# What is auto-instrumentation?
-
-1. I want to know more about my code
-2. I need to instrument it, but I'm too lazy to do it myself
-
----
-
-<!-- _class: vcenter -->
-
-# What is auto-instrumentation?
-
-1. I want to know more about my code
-2. I need to instrument it, but I'm too lazy to do it myself
-3. <span class="medium">INSTRUMENTATION</span>
-
----
-
-<!-- _class: vcenter -->
-
-# What is auto-instrumentation?
-
-1. I want to know more about my code
-2. I need to instrument it, but I'm too lazy to do it myself
-3. ???
-4. <span class="big">Profit 💸💸💸</span>
-
----
-
-<!-- _class: vcenter invert -->
-
-# What is auto-instrumentation?
-
----
-
-<!-- _class: vcenter -->
-
-# What is auto-instrumentation?
-
-**auto-instrumentation**: instrumenting your code (getting traces + data) without manual code changes
+</div>
 
 ---
 
@@ -345,7 +333,7 @@ FOSDEM 2026
 
 <div class="columns">
 
-<div>
+<div class="hidden">
 
 ### RUN TIME
 
@@ -355,9 +343,23 @@ FOSDEM 2026
 
 </div>
 
+<div class="hidden">
+
+### COMPILE TIME
+
+- Happens at... compile time
+- (Before run time)
+- Works great with compiler languages like Go
+
 </div>
 
-**auto-instrumentation**: instrumenting your code (getting traces + data) without manual code changes
+</div>
+
+<br>
+<br>
+<br>
+
+**auto-instrumentation**: instrumenting your code (collecting signals + data) without manual code changes
 
 ---
 
@@ -371,7 +373,42 @@ FOSDEM 2026
 
 ### RUN TIME
 
-- Happens at runtime
+- Happens at runtime (surprised???)
+- Sometimes causes source code changes
+- Meh with compiled languages like Go, C++, etc.
+
+</div>
+
+<div class="hidden">
+
+### COMPILE TIME
+
+- Happens at... compile time
+- (Before run time)
+- Works great with compiled languages like Go, C++, etc.
+
+</div>
+
+</div>
+
+<br>
+<br>
+
+**auto-instrumentation**: instrumenting your code (collecting signals + data) without manual code changes
+
+---
+
+<!-- _class: vcenter -->
+
+# What is auto-instrumentation?
+
+<div class="columns">
+
+<div>
+
+### RUN TIME
+
+- Happens at runtime (surprised???)
 - Sometimes causes source code changes
 - Meh with compiler languages like Go
 
@@ -389,7 +426,10 @@ FOSDEM 2026
 
 </div>
 
-**auto-instrumentation**: instrumenting your code (getting traces + data) without manual code changes
+<br>
+<br>
+
+**auto-instrumentation**: instrumenting your code (collecting signals + data) without manual code changes
 
 ---
 
@@ -397,19 +437,17 @@ FOSDEM 2026
 
 # Runtime Approaches
 
-- iovisor/gobpf
-- cilium/eBPF
-- OpenTelemetry Auto-Instrumentation
-- OpenTelemetry eBPF Instrumentation (OBI)
-- Hooking
-    - Shared library injection
-    - Binary trampolining
+* **eBPF**: extended Berkeley packet filter
+    * `uprobe` hooks
+    * `kprobe` hooks
+    * `USDT` (Userland Statically Defined Tracing) hooks
 
-**eBPF**: extended Berkeley packet filter
+* **Library injection (LD_PRELOAD)**
 
 ---
 
 <!-- _class: vcenter -->
+<!-- footer: "**eBPF**: extended Berkeley packet filter" -->
 
 # How eBPF Works
 
@@ -424,8 +462,6 @@ graph LR
     style process fill:#bbf,stroke:#ccc,stroke-width:2px
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
-
-**eBPF**: extended Berkeley packet filter
 
 ---
 
@@ -447,8 +483,6 @@ graph LR
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-**eBPF**: extended Berkeley packet filter
-
 ---
 
 <!-- _class: vcenter invert -->
@@ -463,7 +497,7 @@ graph LR
 
 <div class="columns">
 
-<div>
+<div class="hidden">
 
 **OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
 
@@ -474,8 +508,29 @@ graph LR
 - Requires administrative privileges (root access)
 
 </div>
-<div>
+
+<div class="hidden">
+
+```mermaid
+graph TB
+    app["Your Go Application<br/>(no changes needed)"]
+    ebpf[eBPF hooks]
+    sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
+    collector[OTel Collector]
+
+    app --> ebpf
+    ebpf --> sidecar
+    sidecar --> collector
+
+    style app fill:#bbf,stroke:#333,stroke-width:2px
+    style ebpf fill:#ffb,stroke:#333,stroke-width:2px
+    style sidecar fill:#bfb,stroke:#333,stroke-width:2px
+    style collector fill:#fbb,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
+```
+
 </div>
+
 </div>
 
 ---
@@ -497,6 +552,51 @@ graph LR
 - Requires administrative privileges (root access)
 
 </div>
+
+<div class="hidden">
+
+```mermaid
+graph TB
+    app["Your Go Application<br/>(no changes needed)"]
+    ebpf[eBPF hooks]
+    sidecar["OBI Sidecar Container<br/>- eBPF programs<br/>- OpenTelemetry exporter"]
+    collector[OTel Collector]
+
+    app --> ebpf
+    ebpf --> sidecar
+    sidecar --> collector
+
+    style app fill:#bbf,stroke:#333,stroke-width:2px
+    style ebpf fill:#ffb,stroke:#333,stroke-width:2px
+    style sidecar fill:#bfb,stroke:#333,stroke-width:2px
+    style collector fill:#fbb,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
+```
+
+</div>
+
+</div>
+
+---
+
+<!-- _class: vcenter -->
+
+# What is OBI?
+
+<div class="columns">
+
+<div>
+
+**OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
+
+- Uses eBPF to hook into Go runtime
+- Extracts telemetry without code modification
+- Part of OpenTelemetry ecosystem
+- Production-ready and vendor-neutral
+- Requires administrative privileges (root access)
+
+</div>
+
 <div>
 
 ```mermaid
@@ -549,19 +649,21 @@ meter_provider:
 ---
 
 <!-- _class: vcenter -->
+<!-- footer: "" -->
 
 # Compile Time Approaches
 
 <div>
 
-- Datadog Orchestrion
-- OpenTelemetry Compile Time Instrumentation SIG
+* OpenTelemetry Compile Time Instrumentation SIG
+* Datadog Orchestrion
 
 </div>
 
 ---
 
 <!-- _class: vcenter -->
+<!-- footer: "Compile Time" -->
 
 # Compile Time Flow
 
@@ -578,6 +680,17 @@ graph LR
     style F fill:#bbf,stroke:#333,stroke-width:2px
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
+
+<div class="hidden">
+
+```bash
+go run -toolexec 'orchestrion toolexec' .
+```
+
+**AST**: abstract syntax tree
+**IR**: intermediate representation
+
+</div>
 
 ---
 
@@ -600,6 +713,14 @@ graph LR
     style F fill:#bbf,stroke:#333,stroke-width:2px
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
+
+<div class="hidden">
+
+```bash
+go run -toolexec 'orchestrion toolexec' .
+```
+
+</div>
 
 **AST**: abstract syntax tree
 **IR**: intermediate representation
@@ -627,63 +748,83 @@ graph LR
     linkStyle default stroke:#aaa,stroke-width:2px
 ```
 
-**AST**: abstract syntax tree
-**IR**: intermediate representation
-
----
-
-<!-- _class: vcenter -->
-
-# Compile Time Flow
-
-```mermaid
-graph LR
-    A[source code] --> B
-    subgraph B[compile time]
-        direction LR
-        C[AST/IR] --> D[machine code] --> E[linking]
-    end
-    B --> F[executable]
-
-    style A fill:#bbf,stroke:#333,stroke-width:2px
-    style B fill:#ffb,stroke:#333,stroke-width:2px
-    style C fill:#fbb,stroke:#333,stroke-width:2px
-    style D fill:#fbb,stroke:#333,stroke-width:2px
-    style E fill:#fbb,stroke:#333,stroke-width:2px
-    style F fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
-```
-
-**AST**: abstract syntax tree
-**IR**: intermediate representation
-
----
-
-<!-- _class: vcenter -->
-
-# Compile Time Flow
-
-```mermaid
-graph LR
-    A[source code] --> B
-    subgraph B[compile time]
-        direction LR
-        C[AST/IR] --> D[machine code] --> E[linking]
-    end
-    B --> F[executable]
-
-    style A fill:#bbf,stroke:#333,stroke-width:2px
-    style B fill:#ffb,stroke:#333,stroke-width:2px
-    style C fill:#fbb,stroke:#333,stroke-width:2px
-    style D fill:#fbb,stroke:#333,stroke-width:2px
-    style E fill:#fbb,stroke:#333,stroke-width:2px
-    style F fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
-```
+<div class="hidden">
 
 ```bash
 go run -toolexec 'orchestrion toolexec' .
 ```
+
+</div>
+
+**AST**: abstract syntax tree
+**IR**: intermediate representation
+
+---
+
+<!-- _class: vcenter -->
+
+# Compile Time Flow
+
+```mermaid
+graph LR
+    A[source code] --> B
+    subgraph B[compile time]
+        direction LR
+        C[AST/IR] --> D[machine code] --> E[linking]
+    end
+    B --> F[executable]
+
+    style A fill:#bbf,stroke:#333,stroke-width:2px
+    style B fill:#ffb,stroke:#333,stroke-width:2px
+    style C fill:#fbb,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333,stroke-width:2px
+    style E fill:#fbb,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
+```
+
+<div class="hidden">
+
+```bash
+go run -toolexec 'orchestrion toolexec' .
+```
+
+</div>
+
+**AST**: abstract syntax tree
+**IR**: intermediate representation
+
+---
+
+<!-- _class: vcenter -->
+
+# Compile Time Flow
+
+```mermaid
+graph LR
+    A[source code] --> B
+    subgraph B[compile time]
+        direction LR
+        C[AST/IR] --> D[machine code] --> E[linking]
+    end
+    B --> F[executable]
+
+    style A fill:#bbf,stroke:#333,stroke-width:2px
+    style B fill:#ffb,stroke:#333,stroke-width:2px
+    style C fill:#fbb,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333,stroke-width:2px
+    style E fill:#fbb,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    linkStyle default stroke:#aaa,stroke-width:2px
+```
+
+<div>
+
+```bash
+go run -toolexec 'orchestrion toolexec' .
+```
+
+</div>
 
 **AST**: abstract syntax tree
 **IR**: intermediate representation
@@ -696,11 +837,11 @@ go run -toolexec 'orchestrion toolexec' .
 
 **Orchestrion** is a compile-time instrumentation approach that:
 
-- Traces the AST created during compile time
-- Injects Datadog instrumentation at specific nodes
-- Updates executable file without source code changes
-- Can be configured to add/remove instrumentation
-- Compatible with OpenTelemetry
+* Traces the AST created during compile time
+* Injects Datadog instrumentation at specific nodes
+* Updates executable file without source code changes
+* Can be configured to add/remove instrumentation
+* Compatible with OpenTelemetry
 
 ---
 
@@ -904,47 +1045,11 @@ Orchestrion: Great for <span class="hl">stability and security</span>
 
 ---
 
-<!-- _class: vcenter invert -->
-
-# The future
-
----
-
 <!-- _class: vcenter -->
 
 # The future
 
-We asked, the Go team answered...
-
-- **golang/go#63185** – Flight recording (released in Go 1.25)
-
----
-
-<!-- _class: vcenter -->
-
-# The future
-
-We asked, the Go team answered...
-
-- **golang/go#63185** – Flight recording (released in Go 1.25)
-
-Go Compile Time Instrumentation SIG
-
-- Tuesdays 12:30-1:30PM EST
-
----
-
-<!-- _class: vcenter -->
-
-# The future
-
-We asked, the Go team answered...
-
-- **golang/go#63185** – Flight recording (released in Go 1.25)
-
-Go Compile Time Instrumentation SIG
-
-- Tuesdays 12:30-1:30PM EST
+TODO(kakkoyun): The proof of concepts...
 
 ---
 
@@ -952,39 +1057,15 @@ Go Compile Time Instrumentation SIG
 
 # Final thoughts
 
----
-
-<!-- _class: vcenter -->
-
-# Final thoughts
-
-1. Instrumentation is helpful and important
-
----
-
-<!-- _class: vcenter -->
-
-# Final thoughts
-
-1. Instrumentation is helpful and important
-2. Auto-instrumentation is EASY
-
----
-
-<!-- _class: vcenter -->
-
-# Final thoughts
-
-1. Instrumentation is helpful and important
-2. Auto-instrumentation is EASY
-3. What are YOU going to do next?
+1) Instrumentation is helpful and important
+2) Auto-instrumentation is EASY
+3) What are YOU going to do next?
 
 ---
 
 <!-- _class: vcenter invert -->
 
 # But wait... (TODO: Kemal)
-
 
 ---
 
@@ -1036,12 +1117,13 @@ PoC work
 **Hannah Kim**
 
 - hannahkm.github.io
-- linkedin.com/in/hannah-kim24/
+- linkedin.com/in/hannah-kim24
 
 **Kemal Akkoyun**
 
 - @kakkoyun
 - github.com/kakkoyun
+- linkedin.com/in/kakkoyun
 
 </div>
 

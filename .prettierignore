@@ -1,0 +1,7 @@
+# Marp presentation - preserve list markers for fragmented list support
+# * = fragmented list (items appear incrementally)
+# - = normal list
+# 1) = fragmented ordered list
+# 1. = normal ordered list
+presentation.md
+unused-slides.md

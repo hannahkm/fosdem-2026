@@ -136,3 +136,35 @@ marp-pre {
 .hljs-meta {
     color: var(--subtle);
 }
+
+/* Fragmented list without bullets */
+.fragment-nobullet ul,
+.fragment-nobullet ol {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.fragment-nobullet li {
+    list-style-type: none;
+}
+
+/* Invert class - swaps to rose-pine-dawn (light) colors */
+section.invert {
+    --base: #faf4ed;
+    --surface: #fffaf3;
+    --overlay: #f2e9e1;
+    --muted: #9893a5;
+    --subtle: #797593;
+    --text: #575279;
+    --love: #b4637a;
+    --gold: #ea9d34;
+    --rose: #d7827e;
+    --pine: #286983;
+    --foam: #56949f;
+    --iris: #907aa9;
+    --highlight-low: #f4ede8;
+    --highlight-muted: #dfdad9;
+    --highlight-high: #cecacd;
+
+    background-color: var(--base);
+}

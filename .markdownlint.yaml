@@ -5,11 +5,13 @@ MD010:
   code_blocks: false
   spaces_per_tab: 4
 
-# Disabled for Marp presentation compatibility
+# Disabled for Marp presentation compatibility and fragmented list support
 MD001: false  # Heading increment - presentations use h3 without h2
+MD004: false  # Unordered list style - Marp uses * for fragmented lists, - for normal lists
 MD013: false  # Line length - impractical for slides
 MD024: false  # Duplicate headings - normal in presentations
 MD025: false  # Multiple top-level headings in the same document
+MD029: false  # Ordered list item prefix - Marp uses 1) for fragmented lists, 1. for normal
 MD033: false  # Inline HTML - required by Marp
 MD036: false  # Emphasis as heading - used for subtitles
 MD040: false  # Fenced code language - diagrams don't need language
