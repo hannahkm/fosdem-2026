@@ -732,7 +732,49 @@ aspects:
 
 <!-- _class: vcenter invert -->
 
+# Benchmarking (TODO: Kemal)
+
+---
+
+<!-- _class: vcenter -->
+
+# Five different scenarios (TODO: Kemal)
+
+1. Default (no instrumentation)
+2. Manual (manually instrument using OTel Go SDK)
+3. OTel eBPF Instrumentation (OBI)
+4. OTel Auto-Instrumentation (also eBPF)
+5. Orchestrion (configured using OTel SDK)
+
+---
+
+<!-- _class: vcenter -->
+
+# Environment Setup (TODO: Kemal)
+
+???
+
+---
+
+<!-- _class: vcenter -->
+
+# Measuring (TODO: Kemal)
+
+Describe DOE setup, HTTP endpoints, generating metrics
+
+---
+
+<!-- _class: vcenter invert -->
+
 # How do they compare?
+
+---
+
+<!-- _class: vcenter -->
+
+# How do they compare?
+
+TODO(Hannah): insert screenshots from Datadog dashboard
 
 ---
 
@@ -936,6 +978,21 @@ Go Compile Time Instrumentation SIG
 1. Instrumentation is helpful and important
 2. Auto-instrumentation is EASY
 3. What are YOU going to do next?
+
+---
+
+<!-- _class: vcenter invert -->
+
+# But wait... (TODO: Kemal)
+
+
+---
+
+<!-- _class: vcenter -->
+
+# But wait... (TODO: Kemal)
+
+PoC work
 
 ---
 
