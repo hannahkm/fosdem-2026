@@ -1,5 +1,3 @@
----
-
 <!-- _class: vcenter -->
 
 # About Us

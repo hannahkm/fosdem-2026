@@ -133,6 +133,84 @@ FOSDEM 2026
 
 <!-- _class: vcenter invert -->
 
+# WHY do we care?
+
+---
+
+<!-- _class: vcenter -->
+
+# The Observability Promise
+
+<div class="columns">
+
+<div>
+
+**What we want:**
+
+* Understand system behavior
+* Debug production issues fast
+* Prevent outages before they happen
+
+</div>
+
+<div>
+
+**What we get:**
+
+* Distributed complexity
+* Partial visibility
+* "It works on my machine"
+
+</div>
+
+</div>
+
+---
+
+<!-- _class: vcenter -->
+
+# The Instrumentation Tax
+
+Every new service requires:
+
+* Import the SDK
+* Initialize the tracer
+* Wrap every handler
+* Propagate context everywhere
+* Handle shutdown gracefully
+
+**Multiply by 100 microservices...**
+
+---
+
+<!-- _class: vcenter -->
+
+# A Hook-Up Story
+
+Where instrumentation gets in the way:
+
+* **Vendor lock-in**: Committed to one APM? Good luck switching
+* **Code pollution**: Business logic buried under telemetry
+* **Inconsistent coverage**: Some services instrumented, some not
+* **Performance anxiety**: "Is this span worth the overhead?"
+
+---
+
+<!-- _class: vcenter -->
+
+# The Dream
+
+**What if we could have observability without changing code?**
+
+* No SDK imports
+* No wrapper functions
+* No context propagation boilerplate
+* Just... observability
+
+---
+
+<!-- _class: vcenter invert -->
+
 # What is instrumentation?
 
 ---
@@ -873,35 +951,145 @@ aspects:
 
 <!-- _class: vcenter invert -->
 
-# Benchmarking (TODO: Kemal)
+# How Does Each Approach Work?
+
+---
+
+<!-- _class: vcenter -->
+
+# Manual Instrumentation (Before)
+
+```go
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    // Just business logic
+    result := processData(r.Body)
+    json.NewEncoder(w).Encode(result)
+}
+```
+
+---
+
+<!-- _class: vcenter -->
+
+# Manual Instrumentation (After)
+
+```go
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    ctx, span := tracer.Start(r.Context(), "handleRequest")
+    defer span.End()
+
+    span.SetAttributes(
+        attribute.String("http.method", r.Method),
+        attribute.String("http.url", r.URL.Path),
+    )
+
+    result := processData(ctx, r.Body)
+    json.NewEncoder(w).Encode(result)
+}
+```
+
+**+15 lines per handler**
+
+---
+
+<!-- _class: vcenter -->
+
+# eBPF Auto-Instrumentation
+
+```yaml
+# No code changes - just deploy a sidecar
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: app
+      image: myapp:latest
+    - name: otel-auto
+      image: otel/autoinstrumentation-go:latest
+      securityContext:
+        privileged: true  # Required for eBPF
+```
+
+**Hooks into Go runtime via uprobes**
+
+---
+
+<!-- _class: vcenter -->
+
+# OBI (OpenTelemetry eBPF Instrumentation)
+
+```bash
+# Run alongside your application
+docker run --privileged \
+  --pid=container:myapp \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318 \
+  otel/ebpf-instrumentation:latest
+```
+
+**Attaches to running process - no restart needed**
+
+---
+
+<!-- _class: vcenter -->
+
+# Orchestrion (Compile-Time)
+
+```bash
+# Build with instrumentation injected
+go build -toolexec 'orchestrion toolexec' -o myapp .
+
+# Or
+orchestrion go build -o myapp .
+```
+
+**AST transformation during compilation**
+
+---
+
+<!-- _class: vcenter invert -->
+
+# Benchmarking
 
 ---
 
 <!-- _class: vcenter -->
 <!-- footer: "" -->
 
-# Several different scenarios (TODO: Kemal)
+# Methodology
 
-1. Default (no instrumentation)
-2. Manual (manually instrument using OTel Go SDK)
-3. eBPF + uprobe
-5. Compile-Time
+* **Environment**: Docker-based observability stack
+* **Load Generator**: Archetypes (idle, throughput, latency, enterprise)
+* **Metrics**: CPU, Memory, Latency (p50/p95/p99), Error rate
+* **Application**: Same Go HTTP server across all scenarios
 
----
-
-<!-- _class: vcenter -->
-
-# Environment Setup (TODO: Kemal)
-
-???
+> Detailed methodology in our FOSDEM Software Performance Devroom talk
 
 ---
 
 <!-- _class: vcenter -->
 
-# Measuring (TODO: Kemal)
+# Scenarios Tested
 
-Describe DOE setup, HTTP endpoints, generating metrics
+1. **Default** - No instrumentation (baseline)
+2. **Manual** - OpenTelemetry SDK with explicit spans
+3. **OBI** - OpenTelemetry eBPF Instrumentation
+4. **eBPF Auto** - OTel Auto-Instrumentation
+5. **Orchestrion** - Compile-time code injection (OTel SDK)
+
+---
+
+<!-- _class: vcenter -->
+
+# Environment Setup
+
+* Docker Compose stack with:
+    * Go application container
+    * OTel Collector
+    * Jaeger (traces)
+    * Prometheus (metrics)
+
+* Identical hardware allocation per scenario
+* 5-minute sustained load tests
 
 ---
 
@@ -1045,11 +1233,85 @@ Orchestrion: Great for <span class="hl">stability and security</span>
 
 ---
 
+<!-- _class: vcenter invert -->
+
+# The Future: Proof of Concepts
+
+---
+
 <!-- _class: vcenter -->
 
-# The future
+# PoC: USDT + eBPF
 
-TODO(kakkoyun): The proof of concepts...
+**User Statically-Defined Tracing**
+
+```go
+// Compile-time probes - zero overhead when disabled
+probe.Fire("fosdem:request_start", requestID, timestamp)
+// ... handle request ...
+probe.Fire("fosdem:request_end", requestID, timestamp, duration)
+```
+
+* Uses `salp` library (Go bindings to libstapsdt)
+* Attached dynamically via bpftrace sidecar
+* **Zero runtime cost** when not tracing
+
+---
+
+<!-- _class: vcenter -->
+
+# PoC: USDT Architecture
+
+```mermaid
+graph LR
+    app[Go App<br/>with USDT probes] --> probes[fosdem:request_*]
+    probes --> bpftrace[bpftrace<br/>sidecar]
+    bpftrace --> exporter[OTLP<br/>Exporter]
+    exporter --> collector[OTel<br/>Collector]
+
+    style app fill:#bbf,stroke:#333,stroke-width:2px
+    style probes fill:#ffb,stroke:#333,stroke-width:2px
+    style bpftrace fill:#bfb,stroke:#333,stroke-width:2px
+    style exporter fill:#fbb,stroke:#333,stroke-width:2px
+    style collector fill:#f9f,stroke:#333,stroke-width:2px
+```
+
+---
+
+<!-- _class: vcenter -->
+
+# PoC: Frida Dynamic Instrumentation
+
+**Runtime function hooking**
+
+```javascript
+// hook.js - Attach to running Go binary
+Interceptor.attach(Module.findExportByName(null, "net/http.serverHandler.ServeHTTP"), {
+    onEnter: function(args) {
+        // Extract request info from Go structs
+        send({ method: readGoString(args[1]), path: readGoString(args[2]) });
+    }
+});
+```
+
+* No code changes, no recompilation
+* Works with **any existing binary**
+* JavaScript hooks + Python OTLP bridge
+
+---
+
+<!-- _class: vcenter -->
+
+# PoC: Flight Recording (Future Vision)
+
+**Continuous profiling with JFR-style recording**
+
+* Always-on, low-overhead tracing
+* Circular buffer of recent events
+* "What happened in the last 5 minutes?"
+* Retroactive debugging without reproduction
+
+**Inspired by Java Flight Recorder**
 
 ---
 
@@ -1060,20 +1322,6 @@ TODO(kakkoyun): The proof of concepts...
 1) Instrumentation is helpful and important
 2) Auto-instrumentation is EASY
 3) What are YOU going to do next?
-
----
-
-<!-- _class: vcenter invert -->
-
-# But wait... (TODO: Kemal)
-
----
-
-<!-- _class: vcenter -->
-
-# But wait... (TODO: Kemal)
-
-PoC work
 
 ---
 
