@@ -1,6 +1,6 @@
 # fosdem-2026
 
-[![Build Presentation](https://github.com/hannahkm/fosdem-2026/actions/workflows/build.yml/badge.svg)](https://github.com/hannahkm/fosdem-2026/actions/workflows/build.yml)
+[![Build Presentation](https://github.com/hannahkm/fosdem-2026/actions/workflows/slides.yml/badge.svg)](https://github.com/hannahkm/fosdem-2026/actions/workflows/slides.yml)
 
 A continuation (AKA improvement) on our [Gophercon '25 talk](https://github.com/hannahkm/gopherconus-2025).
 
