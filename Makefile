@@ -30,6 +30,9 @@ html:
 watch:
 	npx marp --config $(MARP_CONFIG) $(SRC) $(COMMON_FLAGS) --watch --preview
 
+serve: html
+	python -m http.server 8000
+
 lint/md:
 	npx markdownlint-cli2 "**/*.md" "#node_modules" "#experiments"
 

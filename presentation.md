@@ -878,14 +878,14 @@ aspects:
 ---
 
 <!-- _class: vcenter -->
+<!-- footer: "" -->
 
-# Five different scenarios (TODO: Kemal)
+# Several different scenarios (TODO: Kemal)
 
 1. Default (no instrumentation)
 2. Manual (manually instrument using OTel Go SDK)
-3. OTel eBPF Instrumentation (OBI)
-4. OTel Auto-Instrumentation (also eBPF)
-5. Orchestrion (configured using OTel SDK)
+3. eBPF + uprobe
+5. Compile-Time
 
 ---
 
