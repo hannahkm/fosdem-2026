@@ -409,6 +409,18 @@ Where instrumentation gets in the way:
 
 # What is auto-instrumentation?
 
+1. I want to know more about my code
+2. I need to instrument it, but I'm too lazy to do it myself
+3. ???
+
+<span class="big">Profit 💸💸💸</span>
+
+---
+
+<!-- _class: vcenter -->
+
+# What is auto-instrumentation?
+
 <div class="columns">
 
 <div class="hidden">
