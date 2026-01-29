@@ -82,7 +82,7 @@ aspects:
         - package-name: main
         - function-body:
             function:
-              - name: mains
+              - name: main
     advice:
       - prepend-statements:
           imports:
