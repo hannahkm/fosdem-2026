@@ -21,8 +21,7 @@ WORKDIR /app
 
 RUN go mod init usdt
 
-COPY app/usdt/main.go ./
-COPY app/usdt/binaries/ /binaries/
+COPY app/libstabst/main.go ./
 COPY entry.sh ./
 
 RUN go mod tidy

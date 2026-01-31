@@ -10,13 +10,21 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install bootstrap Go (required to build Go from source)
+# Go 1.24.6+ is required as the bootstrap compiler
+ARG TARGETARCH
+RUN curl -fsSL "https://go.dev/dl/go1.24.6.linux-${TARGETARCH}.tar.gz" | tar -C /usr/local -xz
+ENV GOROOT_BOOTSTRAP=/usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+
 # Clone and build Go from the USDT fork
 # Branch adds: runtime/trace/usdt package, stdlib instrumentation, go tool usdt
 RUN git clone --branch poc_usdt --depth 1 \
     https://github.com/kakkoyun/go.git /go-src
 
 WORKDIR /go-src/src
-RUN ./make.bash
+# Work around stale targets issue in CI environments
+RUN GOMAXPROCS=1 GODEBUG=gocachehash=1 ./make.bash
 
 # Stage 2: Build application with custom Go
 FROM debian:bookworm

@@ -1,0 +1,10 @@
+{"event":"http_request_start","method":"GET","path":"/api/users","timestamp":1700000000000000000}
+{"event":"http_request_end","method":"GET","path":"/api/users","status":200,"duration":5000000}
+{"event":"net_dial_start","network":"tcp","address":"db.example.com:5432","timestamp":1700000001000000000}
+{"event":"net_dial_end","network":"tcp","address":"db.example.com:5432","duration":2000000,"error":0}
+{"event":"tls_handshake_start","server_name":"db.example.com","timestamp":1700000002000000000}
+{"event":"tls_handshake_end","server_name":"db.example.com","duration":3000000,"error":0}
+{"event":"http_request_start","method":"POST","path":"/api/orders","timestamp":1700000003000000000}
+{"event":"http_request_start","method":"GET","path":"/health","timestamp":1700000003500000000}
+{"event":"http_request_end","method":"POST","path":"/api/orders","status":201,"duration":10000000}
+{"event":"http_request_end","method":"GET","path":"/health","status":200,"duration":1000000}

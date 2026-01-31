@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -39,6 +40,7 @@ type SpanContext struct {
 var (
 	tracer       oteltrace.Tracer
 	activeSpans  = make(map[string]*SpanContext)
+	spansMu      sync.Mutex
 	otelEndpoint string
 	targetPID    string
 	bpfScript    string
@@ -215,20 +217,26 @@ func handleRequestStart(ctx context.Context, reqID string, event map[string]inte
 	)
 
 	// Store the span context
+	spansMu.Lock()
 	activeSpans[reqID] = &SpanContext{
 		Span:      span,
 		StartTime: startTime,
 	}
+	spansMu.Unlock()
 
 	log.Printf("Started span for request: %s", reqID)
 	return nil
 }
 
 func handleRequestEnd(reqID string, event map[string]interface{}) error {
+	spansMu.Lock()
 	spanCtx, ok := activeSpans[reqID]
 	if !ok {
+		spansMu.Unlock()
 		return fmt.Errorf("no active span found for request: %s", reqID)
 	}
+	delete(activeSpans, reqID)
+	spansMu.Unlock()
 
 	duration, ok := event["duration"].(float64)
 	if !ok {
@@ -245,9 +253,6 @@ func handleRequestEnd(reqID string, event map[string]interface{}) error {
 
 	// End the span
 	spanCtx.Span.End(oteltrace.WithTimestamp(endTime))
-
-	// Clean up
-	delete(activeSpans, reqID)
 
 	log.Printf("Ended span for request: %s (duration: %.2fms)", reqID, duration/1e6)
 	return nil

@@ -552,15 +552,15 @@ func setupLibstabstEnvironment(ctx context.Context, opts *RunManyOpts) (func(con
 
 	log.Info("⌛ Setting up libstabst/USDT tracing environment...")
 
-	// Build the exporter image first
-	log.Info("⌛ Building libstabst exporter image...")
+	// Build the unified exporter image
+	log.Info("⌛ Building unified exporter image...")
 	exporterBuild := &BuildOpts{
-		Dir:     filepath.Join(getRoot(), "app/libstabst"),
+		Dir:     getRoot(),
 		Args:    map[string]string{},
 		Secrets: map[string]string{},
 	}
-	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "libstabst-exporter")
-	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/libstabst/exporter/Dockerfile"))
+	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "bpftrace-exporter")
+	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/exporter/Dockerfile"))
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
 	buildCmd.Env = os.Environ()
@@ -581,14 +581,15 @@ func setupLibstabstEnvironment(ctx context.Context, opts *RunManyOpts) (func(con
 		log.Warn("⚠️ health check failed during libstabst app startup", "error", err)
 	}
 
-	// Create bpftrace exporter container
+	// Create bpftrace exporter container with unified exporter in libstabst mode
 	log.Info("⌛ Creating libstabst exporter container...")
 	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: "libstabst-exporter",
+		Image: "bpftrace-exporter",
 		Env: []string{
 			"OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318",
 			"TARGET_PID=1",
-			"BPFTRACE_SCRIPT=/app/trace-json.bt",
+			"BPFTRACE_SCRIPT=/app/libstabst.bt",
+			"EXPORTER_MODE=libstabst",
 		},
 	}, &container.HostConfig{
 		PidMode:    container.PidMode("container:libstabst"),
@@ -707,15 +708,15 @@ func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 
 	log.Info("⌛ Setting up native USDT tracing environment...")
 
-	// Build the exporter image first
-	log.Info("⌛ Building USDT exporter image...")
+	// Build the unified exporter image
+	log.Info("⌛ Building unified exporter image...")
 	exporterBuild := &BuildOpts{
-		Dir:     filepath.Join(getRoot(), "app/usdt"),
+		Dir:     getRoot(),
 		Args:    map[string]string{},
 		Secrets: map[string]string{},
 	}
-	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "usdt-exporter")
-	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/usdt/exporter/Dockerfile"))
+	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "bpftrace-exporter")
+	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/exporter/Dockerfile"))
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
 	buildCmd.Env = os.Environ()
@@ -736,14 +737,15 @@ func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 		log.Warn("⚠️ health check failed during USDT app startup", "error", err)
 	}
 
-	// Create bpftrace exporter container
+	// Create bpftrace exporter container with unified exporter in native-usdt mode
 	log.Info("⌛ Creating USDT exporter container...")
 	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: "usdt-exporter",
+		Image: "bpftrace-exporter",
 		Env: []string{
 			"OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318",
 			"TARGET_PID=1",
-			"BPFTRACE_SCRIPT=/app/trace-json.bt",
+			"BPFTRACE_SCRIPT=/app/native-usdt.bt",
+			"EXPORTER_MODE=native-usdt",
 		},
 	}, &container.HostConfig{
 		PidMode:    container.PidMode("container:usdt"),
