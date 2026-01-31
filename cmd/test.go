@@ -28,8 +28,8 @@ var (
 	dockerCommand  = "docker-compose"
 	dockerClient   *Client
 	serverPID      *os.Process
-	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion", "injector", "libstabst"}
-	containerNames = []string{"go-auto", "go-obi", "collector", "go-usdt", "go-injector"}
+	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion", "injector", "libstabst", "usdt", "flightrecorder"}
+	containerNames = []string{"go-auto", "go-obi", "collector", "go-usdt", "go-injector", "go-usdt-native"}
 	networkName    = "fosdem2026"
 )
 
@@ -125,6 +125,20 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 			return nil, err
 		}
 		cleanupFunctions = append(cleanupFunctions, cleanupInjector)
+	}
+	if scenario == "usdt" {
+		cleanupUSDT, err := setupUSDTEnvironment(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		cleanupFunctions = append(cleanupFunctions, cleanupUSDT)
+	}
+	if scenario == "flightrecorder" {
+		cleanupFR, err := setupFlightRecorderEnvironment(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		cleanupFunctions = append(cleanupFunctions, cleanupFR)
 	}
 	cleanupFunctions = append(cleanupFunctions, cleanup)
 
@@ -402,8 +416,9 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		return dockerClient.ContainerStop(ctx, scenario, opts)
 	}
 
-	// Start the container ONLY if not ebpf/obi/libstabst/injector (they start in their setup functions)
-	if scenario == "ebpf" || scenario == "obi" || scenario == "libstabst" || scenario == "injector" {
+	// Start the container ONLY if not ebpf/obi/libstabst/injector/usdt (they start in their setup functions)
+	// flightrecorder starts normally as it doesn't need a sidecar
+	if scenario == "ebpf" || scenario == "obi" || scenario == "libstabst" || scenario == "injector" || scenario == "usdt" {
 		return cleanup, nil
 	}
 
@@ -684,6 +699,102 @@ func setupInjectorEnvironment(ctx context.Context, opts *RunManyOpts) (func(cont
 	}
 
 	log.Info("✅ Frida injector environment setup complete")
+	return cleanup, nil
+}
+
+func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
+	log := opts.Logger
+
+	log.Info("⌛ Setting up native USDT tracing environment...")
+
+	// Build the exporter image first
+	log.Info("⌛ Building USDT exporter image...")
+	exporterBuild := &BuildOpts{
+		Dir:     filepath.Join(getRoot(), "app/usdt"),
+		Args:    map[string]string{},
+		Secrets: map[string]string{},
+	}
+	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "usdt-exporter")
+	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/usdt/exporter/Dockerfile"))
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+	buildCmd.Env = os.Environ()
+	if err := buildCmd.Run(); err != nil {
+		log.Error("❌ Failed to build USDT exporter image", "error", err)
+		return nil, err
+	}
+	log.Info("✅ USDT exporter image built")
+
+	// Start the application container first
+	if err := dockerClient.ContainerStart(ctx, "usdt", container.StartOptions{}); err != nil {
+		log.Debug("❌ Failed to start USDT app container", "error", err)
+		return nil, err
+	}
+
+	// Wait for app to be ready
+	if err := waitForAppHealth(ctx, opts.Inputs.Port, "health"); err != nil {
+		log.Warn("⚠️ health check failed during USDT app startup", "error", err)
+	}
+
+	// Create bpftrace exporter container
+	log.Info("⌛ Creating USDT exporter container...")
+	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: "usdt-exporter",
+		Env: []string{
+			"OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318",
+			"TARGET_PID=1",
+			"BPFTRACE_SCRIPT=/app/trace-json.bt",
+		},
+	}, &container.HostConfig{
+		PidMode:    container.PidMode("container:usdt"),
+		Privileged: true,
+		Binds: []string{
+			"/proc:/host/proc",
+			"/sys:/sys:ro",
+		},
+	}, nil, nil, "go-usdt-native")
+	if err != nil {
+		log.Error("❌ Failed to create USDT exporter container", "error", err)
+		return nil, err
+	}
+
+	if err := dockerClient.NetworkConnect(ctx, networkName, "go-usdt-native", nil); err != nil {
+		log.Error("❌ Failed to connect go-usdt-native to network", "error", err)
+		return nil, err
+	}
+
+	// Start the exporter container
+	if err := dockerClient.ContainerStart(ctx, "go-usdt-native", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start USDT exporter", "error", err)
+		return nil, err
+	}
+
+	// Give exporter a moment to attach
+	time.Sleep(3 * time.Second)
+
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, "go-usdt-native", opts)
+	}
+
+	log.Info("✅ Native USDT environment setup complete")
+	return cleanup, nil
+}
+
+func setupFlightRecorderEnvironment(_ context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
+	log := opts.Logger
+
+	log.Info("⌛ Setting up FlightRecorder environment...")
+
+	// FlightRecorder exports traces directly via OTLP - no sidecar needed
+	// The GODEBUG environment is already set in the Dockerfile
+	// Container starts normally via buildGoEnvironment
+
+	cleanup := func(_ container.StopOptions) error {
+		// No sidecar to clean up
+		return nil
+	}
+
+	log.Info("✅ FlightRecorder environment setup complete")
 	return cleanup, nil
 }
 

@@ -14,10 +14,10 @@ var CmdRun = &cli.Command{
 	Usage:   "runs one or more experiments",
 	Description: `
 	Run one or more experiments.
-	
+
 	Available scenarios: default (no instrumentation), manual (manual instrumentation using OTel SDK), obi (Opentelemetry eBPF Instrumentation),
 	ebpf (OpenTelemetry "Auto Instrumentation"), orchestrion (compile-time instrumentation using Orchestrion), injector (Frida dynamic instrumentation),
-	libstabst (USDT probes with bpftrace)
+	libstabst (USDT probes with salp library), usdt (native USDT probes via Go fork), flightrecorder (Flight Recorder distributed tracing via Go fork)
 
 	Use scenario "all" to run all scenarios.
 

@@ -1,0 +1,48 @@
+#!/usr/bin/env bpftrace
+
+/*
+ * USDT tracing for Go applications built with the native USDT fork.
+ * This script captures HTTP request events from the auto-instrumented net/http package.
+ *
+ * Probe points are embedded in the Go stdlib by the custom compiler.
+ * Probe naming follows: go:<package>_<operation>
+ */
+
+// HTTP server request lifecycle
+usdt::go:http_server_request_start
+{
+    printf("{\"event\":\"http_request_start\",\"method\":\"%s\",\"path\":\"%s\",\"timestamp\":%lld}\n",
+           str(arg0), str(arg1), nsecs);
+}
+
+usdt::go:http_server_request_end
+{
+    printf("{\"event\":\"http_request_end\",\"method\":\"%s\",\"path\":\"%s\",\"status\":%d,\"duration\":%lld}\n",
+           str(arg0), str(arg1), arg2, arg3);
+}
+
+// Network dial operations
+usdt::go:net_dial_start
+{
+    printf("{\"event\":\"net_dial_start\",\"network\":\"%s\",\"address\":\"%s\",\"timestamp\":%lld}\n",
+           str(arg0), str(arg1), nsecs);
+}
+
+usdt::go:net_dial_end
+{
+    printf("{\"event\":\"net_dial_end\",\"network\":\"%s\",\"address\":\"%s\",\"duration\":%lld,\"error\":%d}\n",
+           str(arg0), str(arg1), arg2, arg3);
+}
+
+// TLS handshake operations
+usdt::go:tls_handshake_start
+{
+    printf("{\"event\":\"tls_handshake_start\",\"server_name\":\"%s\",\"timestamp\":%lld}\n",
+           str(arg0), nsecs);
+}
+
+usdt::go:tls_handshake_end
+{
+    printf("{\"event\":\"tls_handshake_end\",\"server_name\":\"%s\",\"duration\":%lld,\"error\":%d}\n",
+           str(arg0), arg1, arg2);
+}
