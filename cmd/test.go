@@ -28,8 +28,8 @@ var (
 	dockerCommand  = "docker-compose"
 	dockerClient   *Client
 	serverPID      *os.Process
-	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion"}
-	containerNames = []string{"go-auto", "go-obi", "collector"}
+	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion", "injector"}
+	containerNames = []string{"go-auto", "go-obi", "go-injector", "collector"}
 	networkName    = "fosdem2026"
 )
 
@@ -111,6 +111,13 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 			return nil, err
 		}
 		cleanupFunctions = append(cleanupFunctions, cleanupEBPF)
+	}
+	if scenario == "injector" {
+		cleanupInjector, err := setupInjectorEnvironment(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		cleanupFunctions = append(cleanupFunctions, cleanupInjector)
 	}
 	cleanupFunctions = append(cleanupFunctions, cleanup)
 
@@ -388,8 +395,8 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		return dockerClient.ContainerStop(ctx, scenario, opts)
 	}
 
-	// Start the container ONLY if not ebpf/obi (they start in their setup functions)
-	if scenario == "ebpf" || scenario == "obi" {
+	// Start the container ONLY if not ebpf/obi/injector (they start in their setup functions)
+	if scenario == "ebpf" || scenario == "obi" || scenario == "injector" {
 		return cleanup, nil
 	}
 
@@ -515,6 +522,91 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) (func(container
 	}
 
 	log.Info("✅ OBI environment setup complete")
+	return cleanup, nil
+}
+
+func setupInjectorEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
+	log := opts.Logger
+
+	log.Info("⌛ Building injector sidecar image...")
+	
+	// Build the injector sidecar image
+	buildArgs := map[string]string{}
+	
+	// Load environment variables from .env file
+	envFile := filepath.Join(getRoot(), ".env")
+	if envBuildArgs, err := godotenv.Read(envFile); err == nil {
+		for k, v := range envBuildArgs {
+			buildArgs[k] = v
+		}
+	}
+	
+	build := &BuildOpts{
+		Dir:     filepath.Join(getRoot(), "app", "injector", "sidecar"),
+		Args:    buildArgs,
+		Secrets: map[string]string{},
+	}
+	
+	buildCmd := dockerClient.BuildCommand(ctx, build, "injector-sidecar")
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+	buildCmd.Env = os.Environ()
+	
+	if err := buildCmd.Run(); err != nil {
+		log.Error("❌ Failed to build injector sidecar image", "error", err)
+		return nil, err
+	}
+	
+	log.Info("✅ Injector sidecar image built")
+
+	// Create injector sidecar container
+	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: "injector-sidecar",
+		Env: []string{
+			"OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318",
+			"OTEL_SERVICE_NAME=fosdem-injector",
+			"FRIDA_TARGET_PROCESS=main",
+			"FRIDA_HOOK_SCRIPT=/frida/hook-test.js", // Use test mode with synthetic spans
+		},
+	}, &container.HostConfig{
+		PidMode:     container.PidMode("container:injector"),
+		CapAdd:      []string{"SYS_PTRACE"},
+		SecurityOpt: []string{"seccomp=unconfined"},
+		Binds:       []string{"/proc:/host/proc"},
+	}, nil, nil, "go-injector")
+	if err != nil {
+		log.Error("❌ Failed to create injector sidecar container", "error", err)
+		return nil, err
+	}
+
+	// Start the app container first
+	if err := dockerClient.ContainerStart(ctx, "injector", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start injector app container", "error", err)
+		return nil, err
+	}
+
+	// Connect injector sidecar to network
+	if err := dockerClient.NetworkConnect(ctx, networkName, "go-injector", nil); err != nil {
+		log.Error("❌ Failed to connect go-injector to network", "error", err)
+		return nil, err
+	}
+
+	// Wait for app to be healthy before starting injector
+	if err := waitForAppHealth(ctx, opts.Inputs.Port, "health"); err != nil {
+		log.Warn("⚠️ health check failed during injector setup", "error", err)
+	}
+
+	// Start injector sidecar
+	if err := dockerClient.ContainerStart(ctx, "go-injector", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start injector sidecar", "error", err)
+		return nil, err
+	}
+
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, "go-injector", opts)
+	}
+
+	log.Info("✅ Injector environment setup complete")
 	return cleanup, nil
 }
 

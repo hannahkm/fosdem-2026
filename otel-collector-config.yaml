@@ -38,10 +38,11 @@ exporters:
     endpoint: jaeger:4317
     tls:
       insecure: true
-  datadog:  # Comment out these lines and update pipeline below if DD_API_KEY is not available
-    api:
-      site: datadoghq.com
-      key: ${DD_API_KEY}
+  # datadog exporter disabled - no API key available
+  # datadog:
+  #   api:
+  #     site: datadoghq.com
+  #     key: ${DD_API_KEY}
     hostname: "local-machine"
   prometheusremotewrite/grafana:
     endpoint: "${GRAFANA_ENDPOINT}"
@@ -94,11 +95,11 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [otlp, datadog, spanmetrics] # Change to [otlp, spanmetrics] when disabling Datadog
+      exporters: [otlp, spanmetrics] # Datadog disabled (no API key)
     metrics:
       receivers: [otlp, prometheus]
       processors: [batch, resource]
-      exporters: [prometheus, prometheusremotewrite/grafana, datadog] # Change to [prometheus, prometheusremotewrite/grafana] when disabling Datadog
+      exporters: [prometheus] # Datadog disabled (no API key)
     metrics/spanmetrics:
       receivers: [spanmetrics]
       processors: [batch]
