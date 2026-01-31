@@ -1,4 +1,4 @@
-// Package main provides the injector demo application with noinline directives.
+// Package main provides the USDT instrumentation demo application.
 package main
 
 import (
@@ -13,7 +13,38 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/mmcshane/salp"
 )
+
+var (
+	probes   *salp.Provider
+	reqStart *salp.Probe
+	reqEnd   *salp.Probe
+)
+
+func initProbes() {
+	probes = salp.NewProvider("fosdem")
+	var err error
+	reqStart, err = probes.AddProbe("request_start", salp.String, salp.Int64)
+	if err != nil {
+		log.Printf("Warning: Failed to add request_start probe: %v", err)
+		return
+	}
+	reqEnd, err = probes.AddProbe("request_end", salp.String, salp.Int64, salp.Int64)
+	if err != nil {
+		log.Printf("Warning: Failed to add request_end probe: %v", err)
+		return
+	}
+	err = probes.Load()
+	if err != nil {
+		log.Printf("Warning: Failed to load USDT provider: %v", err)
+		log.Printf("USDT probes will not be available (this is expected in some container environments)")
+		probes = nil
+		reqStart = nil
+		reqEnd = nil
+	}
+}
 
 // Input defines the subset of the doe.cue inputs implemented by this program.
 type Input struct {
@@ -61,6 +92,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize USDT probes (may fail in some environments)
+	initProbes()
+	defer func() {
+		if probes != nil {
+			salp.UnloadAndDispose(probes)
+		}
+	}()
+
 	if inputs.Workers != 0 {
 		log.Printf("Setting GOMAXPROCS to %d", inputs.Workers)
 		runtime.GOMAXPROCS(inputs.Workers)
@@ -104,23 +143,32 @@ func setupHandlers(inputs *Input) http.Handler {
 	return mux
 }
 
-// HealthHandler handles health check requests.
-// Marked noinline to ensure Frida can hook it.
-//
-//go:noinline
 func HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = io.WriteString(w, "OK\n")
 }
 
-// LoadHandler handles load generation requests.
-// Marked noinline to ensure Frida can hook it.
-//
-//go:noinline
-func (c *Input) LoadHandler(w http.ResponseWriter, _ *http.Request) {
+func (c *Input) LoadHandler(w http.ResponseWriter, r *http.Request) {
+	// Generate request ID from timestamp
+	reqID := fmt.Sprintf("req-%d", time.Now().UnixNano())
+	startTime := time.Now().UnixNano()
+
+	// Fire USDT probe at request start
+	if reqStart != nil && reqStart.Enabled() {
+		reqStart.Fire(reqID, startTime)
+	}
+
 	a := allocsLoop(c.AllocsNum, c.AllocSize)
 	simulateOffCPU(c.OffCPU)
 	cpuLoop(c.LoopsNum)
 	runtime.KeepAlive(a)
+
+	// Fire USDT probe at request end
+	endTime := time.Now().UnixNano()
+	duration := endTime - startTime
+	if reqEnd != nil && reqEnd.Enabled() {
+		reqEnd.Fire(reqID, startTime, duration)
+	}
+
 	_, _ = io.WriteString(w, "Hello World\n")
 }
 
