@@ -28,8 +28,8 @@ var (
 	dockerCommand  = "docker-compose"
 	dockerClient   *Client
 	serverPID      *os.Process
-	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion", "usdt"}
-	containerNames = []string{"go-auto", "go-obi", "collector", "go-usdt"}
+	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion", "injector", "libstabst"}
+	containerNames = []string{"go-auto", "go-obi", "collector", "go-usdt", "go-injector"}
 	networkName    = "fosdem2026"
 )
 
@@ -112,12 +112,19 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 		}
 		cleanupFunctions = append(cleanupFunctions, cleanupEBPF)
 	}
-	if scenario == "usdt" {
-		cleanupUSDT, err := setupUSDTEnvironment(ctx, opts)
+	if scenario == "libstabst" {
+		cleanupLibstabst, err := setupLibstabstEnvironment(ctx, opts)
 		if err != nil {
 			return nil, err
 		}
-		cleanupFunctions = append(cleanupFunctions, cleanupUSDT)
+		cleanupFunctions = append(cleanupFunctions, cleanupLibstabst)
+	}
+	if scenario == "injector" {
+		cleanupInjector, err := setupInjectorEnvironment(ctx, opts)
+		if err != nil {
+			return nil, err
+		}
+		cleanupFunctions = append(cleanupFunctions, cleanupInjector)
 	}
 	cleanupFunctions = append(cleanupFunctions, cleanup)
 
@@ -395,8 +402,8 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		return dockerClient.ContainerStop(ctx, scenario, opts)
 	}
 
-	// Start the container ONLY if not ebpf/obi/usdt (they start in their setup functions)
-	if scenario == "ebpf" || scenario == "obi" || scenario == "usdt" {
+	// Start the container ONLY if not ebpf/obi/libstabst/injector (they start in their setup functions)
+	if scenario == "ebpf" || scenario == "obi" || scenario == "libstabst" || scenario == "injector" {
 		return cleanup, nil
 	}
 
@@ -525,20 +532,20 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) (func(container
 	return cleanup, nil
 }
 
-func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
+func setupLibstabstEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
 	log := opts.Logger
 
-	log.Info("⌛ Setting up USDT tracing environment...")
+	log.Info("⌛ Setting up libstabst/USDT tracing environment...")
 
 	// Build the exporter image first
-	log.Info("⌛ Building USDT exporter image...")
+	log.Info("⌛ Building libstabst exporter image...")
 	exporterBuild := &BuildOpts{
-		Dir:  filepath.Join(getRoot(), "app/usdt"),
-		Args: map[string]string{},
+		Dir:     filepath.Join(getRoot(), "app/libstabst"),
+		Args:    map[string]string{},
 		Secrets: map[string]string{},
 	}
-	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "usdt-exporter")
-	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/usdt/exporter/Dockerfile"))
+	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "libstabst-exporter")
+	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/libstabst/exporter/Dockerfile"))
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
 	buildCmd.Env = os.Environ()
@@ -549,27 +556,27 @@ func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 	log.Info("✅ Exporter image built")
 
 	// Start the application container first
-	if err := dockerClient.ContainerStart(ctx, "usdt", container.StartOptions{}); err != nil {
-		log.Debug("❌ Failed to start USDT app container", "error", err)
+	if err := dockerClient.ContainerStart(ctx, "libstabst", container.StartOptions{}); err != nil {
+		log.Debug("❌ Failed to start libstabst app container", "error", err)
 		return nil, err
 	}
 
 	// Wait for app to be ready
 	if err := waitForAppHealth(ctx, opts.Inputs.Port, "health"); err != nil {
-		log.Warn("⚠️ health check failed during USDT app startup", "error", err)
+		log.Warn("⚠️ health check failed during libstabst app startup", "error", err)
 	}
 
 	// Create bpftrace exporter container
-	log.Info("⌛ Creating USDT exporter container...")
+	log.Info("⌛ Creating libstabst exporter container...")
 	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: "usdt-exporter",
+		Image: "libstabst-exporter",
 		Env: []string{
 			"OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318",
 			"TARGET_PID=1",
 			"BPFTRACE_SCRIPT=/app/trace-json.bt",
 		},
 	}, &container.HostConfig{
-		PidMode:    container.PidMode("container:usdt"),
+		PidMode:    container.PidMode("container:libstabst"),
 		Privileged: true,
 		Binds: []string{
 			"/proc:/host/proc",
@@ -577,7 +584,7 @@ func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 		},
 	}, nil, nil, "go-usdt")
 	if err != nil {
-		log.Error("❌ Failed to create USDT exporter container", "error", err)
+		log.Error("❌ Failed to create libstabst exporter container", "error", err)
 		return nil, err
 	}
 
@@ -588,7 +595,7 @@ func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 
 	// Start the exporter container
 	if err := dockerClient.ContainerStart(ctx, "go-usdt", container.StartOptions{}); err != nil {
-		log.Error("❌ Failed to start USDT exporter", "error", err)
+		log.Error("❌ Failed to start libstabst exporter", "error", err)
 		return nil, err
 	}
 
@@ -599,7 +606,84 @@ func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 		return dockerClient.ContainerStop(ctx, "go-usdt", opts)
 	}
 
-	log.Info("✅ USDT environment setup complete")
+	log.Info("✅ libstabst environment setup complete")
+	return cleanup, nil
+}
+
+func setupInjectorEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
+	log := opts.Logger
+
+	log.Info("⌛ Setting up Frida injector environment...")
+
+	// Build the sidecar image first
+	log.Info("⌛ Building Frida sidecar image...")
+	sidecarBuild := &BuildOpts{
+		Dir:     filepath.Join(getRoot(), "app/injector"),
+		Args:    map[string]string{},
+		Secrets: map[string]string{},
+	}
+	buildCmd := dockerClient.BuildCommand(ctx, sidecarBuild, "injector-sidecar")
+	buildCmd.Args = append(buildCmd.Args, "-f", filepath.Join(getRoot(), "app/injector/sidecar/Dockerfile"))
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+	buildCmd.Env = os.Environ()
+	if err := buildCmd.Run(); err != nil {
+		log.Error("❌ Failed to build sidecar image", "error", err)
+		return nil, err
+	}
+	log.Info("✅ Sidecar image built")
+
+	// Start the application container first
+	if err := dockerClient.ContainerStart(ctx, "injector", container.StartOptions{}); err != nil {
+		log.Debug("❌ Failed to start injector app container", "error", err)
+		return nil, err
+	}
+
+	// Wait for app to be ready
+	if err := waitForAppHealth(ctx, opts.Inputs.Port, "health"); err != nil {
+		log.Warn("⚠️ health check failed during injector app startup", "error", err)
+	}
+
+	// Create Frida sidecar container
+	log.Info("⌛ Creating Frida sidecar container...")
+	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: "injector-sidecar",
+		Env: []string{
+			"OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318",
+			"TARGET_PID=1",
+		},
+	}, &container.HostConfig{
+		PidMode:    container.PidMode("container:injector"),
+		Privileged: true,
+		CapAdd:     []string{"SYS_PTRACE"},
+		Binds: []string{
+			"/proc:/host/proc",
+		},
+	}, nil, nil, "go-injector")
+	if err != nil {
+		log.Error("❌ Failed to create Frida sidecar container", "error", err)
+		return nil, err
+	}
+
+	if err := dockerClient.NetworkConnect(ctx, networkName, "go-injector", nil); err != nil {
+		log.Error("❌ Failed to connect go-injector to network", "error", err)
+		return nil, err
+	}
+
+	// Start the sidecar container
+	if err := dockerClient.ContainerStart(ctx, "go-injector", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start Frida sidecar", "error", err)
+		return nil, err
+	}
+
+	// Give sidecar a moment to attach
+	time.Sleep(3 * time.Second)
+
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, "go-injector", opts)
+	}
+
+	log.Info("✅ Frida injector environment setup complete")
 	return cleanup, nil
 }
 
