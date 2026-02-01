@@ -1,6 +1,6 @@
 # Stage 1: Build Go from FlightRecorder fork
 # This fork adds distributed tracing to Go's Flight Recorder
-FROM debian:bookworm AS go-builder
+FROM golang:1.24-bookworm AS go-builder
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -16,6 +16,8 @@ RUN git clone --branch poc_flight_recorder --depth 1 \
     https://github.com/kakkoyun/go.git /go-src
 
 WORKDIR /go-src/src
+# Set bootstrap Go from the base image
+ENV GOROOT_BOOTSTRAP=/usr/local/go
 RUN ./make.bash
 
 # Stage 2: Build application with custom Go

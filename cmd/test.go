@@ -15,9 +15,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/joho/godotenv"
@@ -29,7 +31,7 @@ var (
 	dockerClient   *Client
 	serverPID      *os.Process
 	allScenarios   = []string{"default", "manual", "obi", "ebpf", "orchestrion", "injector", "libstabst", "usdt", "flightrecorder"}
-	containerNames = []string{"go-auto", "go-obi", "collector", "go-usdt", "go-injector", "go-usdt-native"}
+	containerNames = []string{"go-auto", "go-obi", "collector", "go-usdt", "go-injector", "go-usdt-native", "flightrecorder-exporter"}
 	networkName    = "fosdem2026"
 )
 
@@ -75,6 +77,15 @@ func runOne(ctx context.Context, opts *RunManyOpts, scenario string) (*TestResul
 	log := opts.Logger
 	log.Info("Starting test run")
 	start := time.Now()
+
+	// Add timeout to prevent tests from hanging indefinitely
+	timeout := 5 * time.Minute
+	if opts.Timeout > 0 {
+		timeout = opts.Timeout
+	}
+	ctx, timeoutCancel := context.WithTimeout(ctx, timeout)
+	defer timeoutCancel()
+
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 
@@ -380,9 +391,23 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		hostCfg.SecurityOpt = []string{"seccomp=unconfined", "apparmor=unconfined"}
 	}
 
+	// flightrecorder scenario needs a shared volume for trace files
+	if scenario == "flightrecorder" {
+		hostCfg.Mounts = []mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: "flightrecorder_traces",
+				Target: "/tmp/traces",
+			},
+		}
+	}
+
 	if scenario != "default" {
 		opts.Inputs.OtelEndpoint = "otel-collector:4318"
 	}
+
+	// Remove existing container if it exists (from previous runs)
+	_ = dockerClient.ContainerRemove(ctx, scenario, container.RemoveOptions{Force: true})
 
 	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
 		Image: scenario,
@@ -394,15 +419,17 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 			fmt.Sprintf("OTEL_EXPORTER_OTLP_ENDPOINT=%s", opts.Inputs.OtelEndpoint),
 		},
 	}, hostCfg, nil, nil, scenario)
-
-	if err := dockerClient.NetworkConnect(ctx, networkName, scenario, nil); err != nil {
-		log.Error("❌ Failed to connect container to network", "error", err)
-		return nil, err
-	}
-
 	if err != nil {
 		log.Debug("Failed to create container", "error", err)
 		return nil, err
+	}
+
+	if err := dockerClient.NetworkConnect(ctx, networkName, scenario, nil); err != nil {
+		// Ignore "already exists" errors - container may already be connected
+		if !strings.Contains(err.Error(), "already exists") {
+			log.Error("❌ Failed to connect container to network", "error", err)
+			return nil, err
+		}
 	}
 
 	// Handle inputs.json before starting the container
@@ -434,9 +461,8 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		return dockerClient.ContainerStop(ctx, scenario, opts)
 	}
 
-	// Start the container ONLY if not ebpf/obi/libstabst/injector/usdt (they start in their setup functions)
-	// flightrecorder starts normally as it doesn't need a sidecar
-	if scenario == "ebpf" || scenario == "obi" || scenario == "libstabst" || scenario == "injector" || scenario == "usdt" {
+	// Start the container ONLY if not ebpf/obi/libstabst/injector/usdt/flightrecorder (they start in their setup functions)
+	if scenario == "ebpf" || scenario == "obi" || scenario == "libstabst" || scenario == "injector" || scenario == "usdt" || scenario == "flightrecorder" {
 		return cleanup, nil
 	}
 
@@ -800,18 +826,83 @@ func setupUSDTEnvironment(ctx context.Context, opts *RunManyOpts) (func(containe
 	return cleanup, nil
 }
 
-func setupFlightRecorderEnvironment(_ context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
+func setupFlightRecorderEnvironment(ctx context.Context, opts *RunManyOpts) (func(container.StopOptions) error, error) {
 	log := opts.Logger
 
 	log.Info("⌛ Setting up FlightRecorder environment...")
 
-	// FlightRecorder exports traces directly via OTLP - no sidecar needed
-	// The GODEBUG environment is already set in the Dockerfile
-	// Container starts normally via buildGoEnvironment
+	// Build the exporter sidecar image
+	log.Info("⌛ Building FlightRecorder exporter image...")
+	exporterDir := filepath.Join(getRoot(), "app/flightrecorder/exporter")
+	exporterBuild := &BuildOpts{
+		Dir:        exporterDir,
+		ContextDir: exporterDir, // Use exporter dir as context to avoid picking up other files
+		Args:       map[string]string{},
+		Secrets:    map[string]string{},
+	}
+	buildCmd := dockerClient.BuildCommand(ctx, exporterBuild, "flightrecorder-exporter")
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stderr
+	buildCmd.Env = os.Environ()
+	if err := buildCmd.Run(); err != nil {
+		log.Error("❌ Failed to build FlightRecorder exporter image", "error", err)
+		return nil, err
+	}
+	log.Info("✅ FlightRecorder exporter image built")
 
-	cleanup := func(_ container.StopOptions) error {
-		// No sidecar to clean up
-		return nil
+	// Create shared volume for trace files
+	volumeName := "flightrecorder_traces"
+
+	// Remove existing exporter container if it exists
+	_ = dockerClient.ContainerRemove(ctx, "flightrecorder-exporter", container.RemoveOptions{Force: true})
+
+	// Create exporter container
+	log.Info("⌛ Creating FlightRecorder exporter container...")
+	_, err := dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: "flightrecorder-exporter",
+		Env: []string{
+			"OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4318",
+			"TRACE_OUTPUT_DIR=/tmp/traces",
+		},
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: volumeName,
+				Target: "/tmp/traces",
+			},
+		},
+	}, nil, nil, "flightrecorder-exporter")
+	if err != nil {
+		log.Error("❌ Failed to create FlightRecorder exporter container", "error", err)
+		return nil, err
+	}
+
+	// Connect exporter to network
+	if err := dockerClient.NetworkConnect(ctx, networkName, "flightrecorder-exporter", nil); err != nil {
+		if !strings.Contains(err.Error(), "already exists") {
+			log.Error("❌ Failed to connect flightrecorder-exporter to network", "error", err)
+			return nil, err
+		}
+	}
+
+	// Start the exporter container
+	if err := dockerClient.ContainerStart(ctx, "flightrecorder-exporter", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start FlightRecorder exporter", "error", err)
+		return nil, err
+	}
+
+	// Give exporter a moment to start watching
+	time.Sleep(2 * time.Second)
+
+	// Start the app container (was created in buildGoEnvironment but not started)
+	if err := dockerClient.ContainerStart(ctx, "flightrecorder", container.StartOptions{}); err != nil {
+		log.Error("❌ Failed to start flightrecorder app container", "error", err)
+		return nil, err
+	}
+
+	cleanup := func(opts container.StopOptions) error {
+		return dockerClient.ContainerStop(ctx, "flightrecorder-exporter", opts)
 	}
 
 	log.Info("✅ FlightRecorder environment setup complete")

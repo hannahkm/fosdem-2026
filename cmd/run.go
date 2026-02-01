@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/urfave/cli/v3"
@@ -40,6 +41,12 @@ var CmdRun = &cli.Command{
 			Usage: "The scenario to run",
 			Value: "default",
 		},
+		&cli.DurationFlag{
+			Name:    "timeout",
+			Aliases: []string{"t"},
+			Usage:   "Timeout for each test run (e.g., 5m, 10m, 1h)",
+			Value:   5 * time.Minute,
+		},
 	},
 	Action: func(ctx context.Context, c *cli.Command) error {
 		log, cancel := NewLogger(ctx)
@@ -49,6 +56,7 @@ var CmdRun = &cli.Command{
 			Scenario: []string{c.String("scenario")},
 			Num:      c.Int("num"),
 			Force:    c.Bool("force"),
+			Timeout:  c.Duration("timeout"),
 			Inputs: &Input{
 				Port:           8080,
 				RuntimeVersion: "1.25.5",

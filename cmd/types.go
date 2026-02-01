@@ -19,6 +19,7 @@ type RunManyOpts struct {
 	Scenario []string
 	Force    bool
 	Num      int
+	Timeout  time.Duration
 }
 
 // TestResult holds timing and telemetry data from a single test run.
@@ -80,6 +81,8 @@ type Client struct {
 type BuildOpts struct {
 	// Dir points to the directory containing the Dockerfile.
 	Dir string
+	// ContextDir overrides the build context directory (defaults to project root).
+	ContextDir string
 	// https://docs.docker.com/reference/cli/docker/buildx/build/#build-arg
 	Args    map[string]string
 	Secrets map[string]string
@@ -180,6 +183,11 @@ func (c *Client) BuildCommand(ctx context.Context, opts *BuildOpts, scenario str
 	for id, env := range opts.Secrets {
 		args = append(args, "--secret", fmt.Sprintf("id=%s,env=%s", id, env))
 	}
-	args = append(args, getRoot())
+	// Use ContextDir if specified, otherwise default to project root
+	contextDir := getRoot()
+	if opts.ContextDir != "" {
+		contextDir = opts.ContextDir
+	}
+	args = append(args, contextDir)
 	return exec.CommandContext(ctx, "docker", args...)
 }
