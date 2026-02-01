@@ -133,6 +133,18 @@ FOSDEM 2026
 
 <!-- _class: vcenter invert -->
 
+# Actually...
+
+**Does any of this matter anymore?**
+
+AI writes all our code now anyway...
+
+<!-- TODO: Add AI joke/meme image here -->
+
+---
+
+<!-- _class: vcenter invert -->
+
 # WHY do we care?
 
 ---
@@ -525,6 +537,43 @@ Where instrumentation gets in the way:
 
 <!-- _class: vcenter -->
 
+# Manual Instrumentation (Before)
+
+```go
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    // Just business logic
+    result := processData(r.Body)
+    json.NewEncoder(w).Encode(result)
+}
+```
+
+---
+
+<!-- _class: vcenter -->
+
+# Manual Instrumentation (After)
+
+```go
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    ctx, span := tracer.Start(r.Context(), "handleRequest")
+    defer span.End()
+
+    span.SetAttributes(
+        attribute.String("http.method", r.Method),
+        attribute.String("http.url", r.URL.Path),
+    )
+
+    result := processData(ctx, r.Body)
+    json.NewEncoder(w).Encode(result)
+}
+```
+
+**+15 lines per handler**
+
+---
+
+<!-- _class: vcenter -->
+
 # Runtime Approaches
 
 * **eBPF**: extended Berkeley packet filter
@@ -575,10 +624,34 @@ graph LR
 
 ---
 
+<!-- _class: vcenter -->
+
+# eBPF Auto-Instrumentation
+
+```yaml
+# No code changes - just deploy a sidecar
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: app
+      image: myapp:latest
+    - name: otel-auto
+      image: otel/autoinstrumentation-go:latest
+      securityContext:
+        privileged: true  # Required for eBPF
+```
+
+**Hooks into Go runtime via uprobes**
+
+---
+
 <!-- _class: vcenter invert -->
 
 # OpenTelemetry eBPF Instrumentation (OBI)
 
+![width:600](./assets/otel_ebpf_instrumentation.png)
+
 ---
 
 <!-- _class: vcenter -->
@@ -679,9 +752,9 @@ graph TB
 
 **OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
 
-- Uses eBPF to hook into Go runtime
-- Extracts telemetry without code modification
-- Part of OpenTelemetry ecosystem
+- Uses eBPF for network-level tracing
+- **Multi-language**: Go, Java, .NET, Python, Node.js, Ruby, Rust
+- **Protocol coverage**: HTTP/S, gRPC, TLS visibility
 - Production-ready and vendor-neutral
 - Requires administrative privileges (root access)
 
@@ -735,6 +808,22 @@ meter_provider:
     features:
         - application
 ```
+
+---
+
+<!-- _class: vcenter -->
+
+# OBI (OpenTelemetry eBPF Instrumentation)
+
+```bash
+# Run alongside your application
+docker run --privileged \
+  --pid=container:myapp \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318 \
+  otel/ebpf-instrumentation:latest
+```
+
+**Attaches to running process - no restart needed**
 
 ---
 
@@ -927,11 +1016,12 @@ go run -toolexec 'orchestrion toolexec' .
 
 **Orchestrion** is a compile-time instrumentation approach that:
 
-* Traces the AST created during compile time
-* Injects Datadog instrumentation at specific nodes
-* Updates executable file without source code changes
-* Can be configured to add/remove instrumentation
-* Compatible with OpenTelemetry
+* Uses Go's `-toolexec` to rewrite AST during compilation
+* Aspect-oriented: declarative join points + advice templates
+* **Vendor-neutral**: Supports OpenTelemetry (not Datadog-specific)
+* Can instrument stdlib and dependencies automatically
+
+> **Jan 2025**: Datadog + Alibaba merging into unified OTel compile-time solution
 
 ---
 
@@ -958,87 +1048,6 @@ aspects:
                     tracer := otel.Tracer()
                     _, span := tracer.Start(context.Background, "orchestrion.handler")
 ```
-
----
-
-<!-- _class: vcenter invert -->
-
-# How Does Each Approach Work?
-
----
-
-<!-- _class: vcenter -->
-
-# Manual Instrumentation (Before)
-
-```go
-func handleRequest(w http.ResponseWriter, r *http.Request) {
-    // Just business logic
-    result := processData(r.Body)
-    json.NewEncoder(w).Encode(result)
-}
-```
-
----
-
-<!-- _class: vcenter -->
-
-# Manual Instrumentation (After)
-
-```go
-func handleRequest(w http.ResponseWriter, r *http.Request) {
-    ctx, span := tracer.Start(r.Context(), "handleRequest")
-    defer span.End()
-
-    span.SetAttributes(
-        attribute.String("http.method", r.Method),
-        attribute.String("http.url", r.URL.Path),
-    )
-
-    result := processData(ctx, r.Body)
-    json.NewEncoder(w).Encode(result)
-}
-```
-
-**+15 lines per handler**
-
----
-
-<!-- _class: vcenter -->
-
-# eBPF Auto-Instrumentation
-
-```yaml
-# No code changes - just deploy a sidecar
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-    - name: app
-      image: myapp:latest
-    - name: otel-auto
-      image: otel/autoinstrumentation-go:latest
-      securityContext:
-        privileged: true  # Required for eBPF
-```
-
-**Hooks into Go runtime via uprobes**
-
----
-
-<!-- _class: vcenter -->
-
-# OBI (OpenTelemetry eBPF Instrumentation)
-
-```bash
-# Run alongside your application
-docker run --privileged \
-  --pid=container:myapp \
-  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318 \
-  otel/ebpf-instrumentation:latest
-```
-
-**Attaches to running process - no restart needed**
 
 ---
 
@@ -1292,23 +1301,88 @@ graph LR
 
 <!-- _class: vcenter -->
 
+# USDT Ecosystem
+
+**libstapsdt** enables runtime USDT probes for dynamic languages:
+
+| Language | Library | Status |
+| -------- | ------- | ------ |
+| C/C++ | sys/sdt.h | Native support |
+| Python | python-stapsdt | Production ready |
+| Node.js | node-stapsdt | Production ready |
+| Go | salp | Experimental |
+| Ruby | ruby-stapsdt | In development |
+
+* DTrace 2.0.4+ supports `stapsdt` provider on Linux
+* Works with bpftrace, bcc, perf, and SystemTap
+
+---
+
+<!-- _class: vcenter -->
+
+# PoC: Native USDT in Go Fork
+
+```go
+import "runtime/trace/usdt"
+
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    usdt.Probe("myapp", "request_start")
+    defer usdt.Probe1("myapp", "request_end", int32(w.StatusCode))
+    // ... handle request
+}
+```
+
+Stdlib auto-instrumented: `net/http`, `database/sql`, `crypto/tls`, `net`
+
+---
+
+<!-- _class: vcenter -->
+
+# PoC: Native USDT - Tooling
+
+```bash
+# List probes in binary
+$ go tool usdt list ./myserver
+PROVIDER   NAME                  ADDRESS     ARGUMENTS
+net_http   server_request_start  0x63296c    8@%rsi -8@%r8
+
+# Generate bpftrace script
+$ go tool usdt bpftrace ./myserver > trace.bt
+$ sudo bpftrace trace.bt
+```
+
+[github.com/kakkoyun/go/tree/poc_usdt](https://github.com/kakkoyun/go/tree/poc_usdt)
+
+---
+
+<!-- _class: vcenter -->
+
 # PoC: Frida Dynamic Instrumentation
 
-**Runtime function hooking**
+**Runtime function hooking via ptrace**
 
 ```javascript
-// hook.js - Attach to running Go binary
-Interceptor.attach(Module.findExportByName(null, "net/http.serverHandler.ServeHTTP"), {
+// Attach to running Go binary
+Interceptor.attach(Module.findExportByName(null,
+    "net/http.serverHandler.ServeHTTP"), {
     onEnter: function(args) {
-        // Extract request info from Go structs
-        send({ method: readGoString(args[1]), path: readGoString(args[2]) });
+        send({ method: readGoString(args[1]) });
     }
 });
 ```
 
-* No code changes, no recompilation
-* Works with **any existing binary**
-* JavaScript hooks + Python OTLP bridge
+* No code changes, works with any existing binary
+* Requires `-gcflags="all=-N -l"` (disable optimizations)
+
+---
+
+<!-- _class: vcenter -->
+
+# Frida: Challenges with Go
+
+![width:700](./assets/quarkuslab_injector.png)
+
+Based on [Quarkslab research](https://blog.quarkslab.com/lets-go-into-the-rabbit-hole-part-1-the-challenges-of-dynamically-hooking-golang-program.html)
 
 ---
 
@@ -1316,14 +1390,28 @@ Interceptor.attach(Module.findExportByName(null, "net/http.serverHandler.ServeHT
 
 # PoC: Flight Recording (Future Vision)
 
-**Continuous profiling with JFR-style recording**
+**Always-on distributed tracing with Go's runtime**
 
-* Always-on, low-overhead tracing
-* Circular buffer of recent events
-* "What happened in the last 5 minutes?"
-* Retroactive debugging without reproduction
+* Ring buffer with bounded memory
+* W3C Trace Context propagation
+* GODEBUG-based: `tracehttp=1`, `tracesql=1`, `tracenet=1`
 
-**Inspired by Java Flight Recorder**
+```go
+import "runtime/trace/flight"
+
+flight.Enable(flight.HTTP | flight.SQL | flight.Net)
+defer flight.Flush()  // Export on error/crash
+```
+
+---
+
+<!-- _class: vcenter -->
+
+# PoC: Flight Recorder Go Fork
+
+![width:900](./assets/go_poc_flight_recorder.png)
+
+[github.com/kakkoyun/go/tree/poc_flight_recorder](https://github.com/kakkoyun/go/tree/poc_flight_recorder)
 
 ---
 
@@ -1404,4 +1492,13 @@ p { font-size: 0.5em; line-height: 1.4; }
 
 # References
 
-\[1\]
+- [OpenTelemetry eBPF Instrumentation (OBI)](https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation)
+- [OpenTelemetry Go Auto-Instrumentation](https://github.com/open-telemetry/opentelemetry-go-instrumentation)
+- [Datadog Orchestrion](https://github.com/datadog/orchestrion)
+- [salp - Go USDT library](https://github.com/mmcshane/salp)
+- [libstapsdt](https://github.com/sthima/libstapsdt)
+- [Go fork with USDT support](https://github.com/kakkoyun/go/tree/poc_usdt)
+- [Go fork with Flight Recorder](https://github.com/kakkoyun/go/tree/poc_flight_recorder)
+- [bpftrace](https://github.com/iovisor/bpftrace)
+- [Quarkslab: Dynamically hooking Go programs](https://blog.quarkslab.com/lets-go-into-the-rabbit-hole-part-1-the-challenges-of-dynamically-hooking-golang-program.html)
+- [USDT Tracing Across Runtimes (Oracle)](https://blogs.oracle.com/linux/usdt-tracing-across-different-runtimes)
