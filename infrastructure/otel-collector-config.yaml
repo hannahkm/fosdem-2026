@@ -40,20 +40,6 @@ exporters:
       insecure: true
   debug:
     verbosity: detailed
-  # Note: Uncomment datadog/grafana exporters when API keys are available
-  # datadog:
-  #   api:
-  #     site: datadoghq.com
-  #     key: ${DD_API_KEY}
-  #   hostname: "local-machine"
-  # prometheusremotewrite/grafana:
-  #   endpoint: "${GRAFANA_ENDPOINT}"
-  #   headers:
-  #     Authorization: "${GRAFANA_API_KEY}"
-  #   tls:
-  #     insecure: false
-  #   resource_to_telemetry_conversion:
-  #     enabled: true
 
 connectors:
   spanmetrics:

@@ -292,11 +292,11 @@ func setupEnvironment(ctx context.Context, opts *RunManyOpts) error {
 	}
 
 	// Setup Docker services
-	if err := run(dockerCommand, "up", "-d", "--remove-orphans"); err != nil {
+	if err := run(dockerCommand, "-f", filepath.Join(getRoot(), "infrastructure/docker-compose.yaml"), "up", "-d", "--remove-orphans"); err != nil {
 		return err
 	}
 	time.Sleep(3 * time.Second)
-	_ = run(dockerCommand, "ps") // best-effort status display
+	_ = run(dockerCommand, "-f", filepath.Join(getRoot(), "infrastructure/docker-compose.yaml"), "ps") // best-effort status display
 	log.Info("✅ Services started!")
 	log.Info("   - Grafana: http://localhost:3000")
 	log.Info("   - Jaeger: http://localhost:16686")
@@ -533,7 +533,7 @@ func setupOBIEnvironment(ctx context.Context, opts *RunManyOpts) (func(container
 		Privileged: true,
 		Binds: []string{
 			"/proc:/host/proc",
-			filepath.Join(getRoot(), "obi-config.yaml") + ":/etc/obi/config.yaml:ro",
+			filepath.Join(getRoot(), "infrastructure/obi-config.yaml") + ":/etc/obi/config.yaml:ro",
 		},
 	}, nil, nil, "go-obi")
 	if err != nil {
@@ -823,7 +823,7 @@ func setupFlightRecorderEnvironment(_ context.Context, opts *RunManyOpts) (func(
 func cleanup(log *slog.Logger) error {
 	log.Info("🧹 Cleaning up...")
 
-	_ = run(dockerCommand, "down", "--remove-orphans") // best-effort cleanup
+	_ = run(dockerCommand, "-f", filepath.Join(getRoot(), "infrastructure/docker-compose.yaml"), "down", "--remove-orphans") // best-effort cleanup
 
 	// Make sure that all containers are stopped and removed, or else re-running
 	// will cause conflicts with existing container names.
