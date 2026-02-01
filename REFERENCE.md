@@ -22,5 +22,4 @@
 - [Performance and Reliability Pitfalls of eBPF (FOSDEM '26 talk)](https://fosdem.org/2026/schedule/event/H3LM7G-performance_and_reliability_pitfalls_of_ebpf/)
 - [eBPF Performance Pitfalls Slides (PDF)](https://fosdem.org/2026/events/attachments/H3LM7G-performance_and_reliability_pitfalls_of_ebpf/slides/257838/ebpf_perf_pbrejc3.pdf)
 
-- <https://github.com/golang/go/compare/master...kakkoyun:go:poc_flight_recorder?expand=1>
--<https://github.com/golang/go/compare/master...kakkoyun:go:poc_usdt?expand=1>
+- <https://github.com/golang/go/compare/master...kakkoyun:go:poc_flight_recorder?expand=1> -<https://github.com/golang/go/compare/master...kakkoyun:go:poc_usdt?expand=1>

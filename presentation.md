@@ -14,7 +14,7 @@ style: |
         gap: 1rem;
     }
     .comment {
-        color: #888;
+        color:rgb(204, 204, 204);
     }
     .medium {
         font-size: 3.5em;
@@ -31,7 +31,7 @@ style: |
     .centered-table {
         display: flex;
         justify-content: center;
-        color: #aaa;
+        color: #fff;
     }
     thead th {
         background-color: #e0e0e0;
@@ -52,7 +52,7 @@ style: |
     }
     .replace .old {
         text-decoration: line-through;
-        color: #aaa;
+        color: #fff;
     }
     .replace .new {
         font-weight: bold;
@@ -86,7 +86,7 @@ style: |
         left: auto;
         right: 70px;
         font-size: 0.8em;
-        color: #aaa;
+        color: #fff;
     }
     header {
         top: 20px;
@@ -94,7 +94,7 @@ style: |
         left: 30px;
         right: auto;
         font-size: 0.6em;
-        color: #aaa;
+        color: #fff;
     }
     footer {
         top: auto;
@@ -102,7 +102,7 @@ style: |
         left: 30px;
         right: auto;
         font-size: 0.6em;
-        color: #aaa;
+        color: #fff;
     }
     .center {
         text-align: center;
@@ -115,6 +115,9 @@ style: |
     section p,
     section li {
         font-size: 0.8em;
+    }
+    section li {
+        color:rgb(231, 231, 231)
     }
     .hidden {
         visibility: hidden;
@@ -197,7 +200,7 @@ Every new service requires:
 
 <!-- _class: vcenter -->
 
-# A Hook-Up Story
+# A Story
 
 Where instrumentation gets in the way:
 
@@ -400,6 +403,42 @@ Where instrumentation gets in the way:
 # WHAT IS AUTO-INSTRUMENTATION? 🤔
 
 ---
+<!-- _class: vcenter -->
+
+# Manual Instrumentation (Before)
+
+```go
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    // Just business logic
+    result := processData(r.Body)
+    json.NewEncoder(w).Encode(result)
+}
+```
+
+---
+
+<!-- _class: vcenter -->
+
+# Manual Instrumentation (After)
+
+```go
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    ctx, span := tracer.Start(r.Context(), "handleRequest")
+    defer span.End()
+
+    span.SetAttributes(
+        attribute.String("http.method", r.Method),
+        attribute.String("http.url", r.URL.Path),
+    )
+
+    result := processData(ctx, r.Body)
+    json.NewEncoder(w).Encode(result)
+}
+```
+
+**+15 lines per handler**
+
+---
 
 <!-- _class: vcenter -->
 
@@ -537,43 +576,6 @@ Where instrumentation gets in the way:
 
 <!-- _class: vcenter -->
 
-# Manual Instrumentation (Before)
-
-```go
-func handleRequest(w http.ResponseWriter, r *http.Request) {
-    // Just business logic
-    result := processData(r.Body)
-    json.NewEncoder(w).Encode(result)
-}
-```
-
----
-
-<!-- _class: vcenter -->
-
-# Manual Instrumentation (After)
-
-```go
-func handleRequest(w http.ResponseWriter, r *http.Request) {
-    ctx, span := tracer.Start(r.Context(), "handleRequest")
-    defer span.End()
-
-    span.SetAttributes(
-        attribute.String("http.method", r.Method),
-        attribute.String("http.url", r.URL.Path),
-    )
-
-    result := processData(ctx, r.Body)
-    json.NewEncoder(w).Encode(result)
-}
-```
-
-**+15 lines per handler**
-
----
-
-<!-- _class: vcenter -->
-
 # Runtime Approaches
 
 * **eBPF**: extended Berkeley packet filter
@@ -599,7 +601,7 @@ graph LR
 
     style kernel fill:#f9f,stroke:#ccc,stroke-width:2px
     style process fill:#bbf,stroke:#ccc,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 ---
@@ -619,7 +621,7 @@ graph LR
     style kernel fill:#f9f,stroke:#333,stroke-width:2px
     style hook fill:#ffb,stroke:#ccc,stroke-width:2px
     style process fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 ---
@@ -689,7 +691,7 @@ graph TB
     style ebpf fill:#ffb,stroke:#333,stroke-width:2px
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 </div>
@@ -708,9 +710,9 @@ graph TB
 
 **OBI** (OpenTelemetry eBPF Instrumentation) is a runtime instrumentation approach that:
 
-- Uses eBPF to hook into Go runtime
-- Extracts telemetry without code modification
-- Part of OpenTelemetry ecosystem
+- Uses eBPF for network-level tracing
+- **Multi-language**: Go, Java, .NET, Python, Node.js, Ruby, Rust
+- **Protocol coverage**: HTTP/S, gRPC, TLS visibility
 - Production-ready and vendor-neutral
 - Requires administrative privileges (root access)
 
@@ -733,7 +735,7 @@ graph TB
     style ebpf fill:#ffb,stroke:#333,stroke-width:2px
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 </div>
@@ -777,7 +779,7 @@ graph TB
     style ebpf fill:#ffb,stroke:#333,stroke-width:2px
     style sidecar fill:#bfb,stroke:#333,stroke-width:2px
     style collector fill:#fbb,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 </div>
@@ -857,7 +859,7 @@ graph LR
     style A fill:#bbf,stroke:#333,stroke-width:2px
     style B fill:#ffb,stroke:#333,stroke-width:2px
     style F fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 <div class="hidden">
@@ -890,7 +892,7 @@ graph LR
     style B fill:#ffb,stroke:#333,stroke-width:2px
     style C fill:#fbb,stroke:#333,stroke-width:2px
     style F fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 <div class="hidden">
@@ -924,7 +926,7 @@ graph LR
     style C fill:#fbb,stroke:#333,stroke-width:2px
     style D fill:#fbb,stroke:#333,stroke-width:2px
     style F fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 <div class="hidden">
@@ -959,7 +961,7 @@ graph LR
     style D fill:#fbb,stroke:#333,stroke-width:2px
     style E fill:#fbb,stroke:#333,stroke-width:2px
     style F fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 <div class="hidden">
@@ -994,7 +996,7 @@ graph LR
     style D fill:#fbb,stroke:#333,stroke-width:2px
     style E fill:#fbb,stroke:#333,stroke-width:2px
     style F fill:#bbf,stroke:#333,stroke-width:2px
-    linkStyle default stroke:#aaa,stroke-width:2px
+    linkStyle default stroke:#fff,stroke-width:2px
 ```
 
 <div>
@@ -1122,9 +1124,33 @@ orchestrion go build -o myapp .
 
 <!-- _class: vcenter -->
 
-# How do they compare?
+# Latency
 
-TODO(Hannah): insert screenshots from Datadog dashboard
+![height:450px](./assets/latency.png)
+
+---
+
+<!-- _class: vcenter -->
+
+# Throughput
+
+![](./assets/throughput.png)
+
+---
+
+<!-- _class: vcenter -->
+
+# CPU / Memory
+
+![](./assets/cpurss.png)
+
+---
+
+<!-- _class: vcenter -->
+
+# Host Metrics
+
+![](./assets/hostmetrics.png)
 
 ---
 
@@ -1132,18 +1158,14 @@ TODO(Hannah): insert screenshots from Datadog dashboard
 
 <div class="centered-table">
 
-| Approach           | CPU | Memory | # Errors |
-| ------------------ | --- | ------ | -------- |
-| Manual             |     |        |          |
-| Auto (eBPF)        |     |        |          |
-| Auto (OBI)         |     |        |          |
-| Auto (Orchestrion) |     |        |          |
+| Approach           | CPU | Memory (RSS) | Max Latency | Max Throughput |
+| ------------------ | --- | ------ | -------- | ---------- |
+| Baseline           | 10.2%  | 202 MiB  |  4.50 ms | 3.1k req/sec  | 
+| Manual             | 10.3% (+0.1%)    |  210 MiB (+8 MiB)  |  3.02 ms (-1.48 ms)  | 13.97k req/sec (+10.87k req/sec) |
+| Auto (eBPF)        |  10% (-0.3%)   | 204 MiB (+2 MiB)   | 3.07 ms (-1.43 ms) | 4.57k req/sec (+1.47k req/sec) |
+| Auto (toolchain)   |  9.8% (-0.4%)   | 210 (+8 MiB)  | 2.59 ms (-1.91 ms)  | 27.8k req/sec (+24.7k req/sec) |
 
 </div>
-
-```bash
-TODO(hannah): add numbers +/- to table above, add more columns as necessary
-```
 
 ---
 
@@ -1161,9 +1183,8 @@ TODO(hannah): add numbers +/- to table above, add more columns as necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        |             |           |          |             |
-| Auto (OBI)         |             |           |          |             |
-| Auto (Orchestrion) |             |           |          |             |
+| Auto (eBPF)         |             |           |          |             |
+| Auto (toolchain) |             |           |          |             |
 
 </div>
 
@@ -1177,9 +1198,8 @@ TODO(hannah): add numbers +/- to table above, add more columns as necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           |           |          |             |
-| Auto (OBI)         | ⚠           |           |          |             |
-| Auto (Orchestrion) | ⚠           |           |          |             |
+| Auto (eBPF)         | ⚠           |           |          |             |
+| Auto (toolchain) | ⚠           |           |          |             |
 
 </div>
 
@@ -1193,9 +1213,8 @@ TODO(hannah): add numbers +/- to table above, add more columns as necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         |          |             |
-| Auto (OBI)         | ⚠           | ⚠         |          |             |
-| Auto (Orchestrion) | ⚠           | ✅        |          |             |
+| Auto (eBPF)         | ⚠           | ⚠         |          |             |
+| Auto (toolchain) | ⚠           | ✅        |          |             |
 
 </div>
 
@@ -1209,9 +1228,8 @@ TODO(hannah): add numbers +/- to table above, add more columns as necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        |             |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        |             |
-| Auto (Orchestrion) | ⚠           | ✅        | ✅       |             |
+| Auto (eBPF)         | ⚠           | ⚠         | ⚠        |             |
+| Auto (toolchain) | ⚠           | ✅        | ✅       |             |
 
 </div>
 
@@ -1225,9 +1243,8 @@ TODO(hannah): add numbers +/- to table above, add more columns as necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ⚠           |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ⚠           |
-| Auto (Orchestrion) | ⚠           | ✅        | ✅       | ✅          |
+| Auto (eBPF)         | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (toolchain) | ⚠           | ✅        | ✅       | ⚠          |
 
 </div>
 
@@ -1241,16 +1258,15 @@ TODO(hannah): add numbers +/- to table above, add more columns as necessary
 
 | Approach           | Performance | Stability | Security | Portability |
 | ------------------ | ----------- | --------- | -------- | ----------- |
-| Auto (eBPF)        | ⚠           | ⚠         | ⚠        | ⚠           |
-| Auto (OBI)         | ⚠           | ⚠         | ⚠        | ⚠           |
-| Auto (Orchestrion) | ⚠           | ✅        | ✅       | ✅          |
+| Auto (eBPF)         | ⚠           | ⚠         | ⚠        | ⚠           |
+| Auto (toolchain) | ⚠           | ✅        | ✅       | ⚠          |
 
 </div>
 
 **It depends on your use case!**
 
-eBPF/OBI: Great for <span class="hl">runtime flexibility</span>
-Orchestrion: Great for <span class="hl">stability and security</span>
+eBPF/OBI: Great for RUNTIME FLEXIBILITY
+Orchestrion: Great for STABILITY AND SECURITY
 
 ---
 
@@ -1305,6 +1321,8 @@ graph LR
 
 **libstapsdt** enables runtime USDT probes for dynamic languages:
 
+<div class="centered-table">
+
 | Language | Library | Status |
 | -------- | ------- | ------ |
 | C/C++ | sys/sdt.h | Native support |
@@ -1312,6 +1330,8 @@ graph LR
 | Node.js | node-stapsdt | Production ready |
 | Go | salp | Experimental |
 | Ruby | ruby-stapsdt | In development |
+
+</div>
 
 * DTrace 2.0.4+ supports `stapsdt` provider on Linux
 * Works with bpftrace, bcc, perf, and SystemTap
@@ -1415,20 +1435,11 @@ defer flight.Flush()  // Export on error/crash
 
 ---
 
-<!-- _class: vcenter invert -->
-
 # Final thoughts
 
 1) Instrumentation is helpful and important
 2) Auto-instrumentation is EASY
 3) What are YOU going to do next?
-
----
-
-<!-- _class: vcenter invert -->
-<!-- footer: "" -->
-
-# Conclusion
 
 ---
 
@@ -1463,15 +1474,13 @@ defer flight.Flush()  // Export on error/crash
 <div class="contact-info">
 
 **Hannah Kim**
-
-- hannahkm.github.io
-- linkedin.com/in/hannah-kim24
+hannahkm.github.io
+linkedin.com/in/hannah-kim24
 
 **Kemal Akkoyun**
-
-- @kakkoyun
-- github.com/kakkoyun
-- linkedin.com/in/kakkoyun
+@kakkoyun
+github.com/kakkoyun
+linkedin.com/in/kakkoyun
 
 </div>
 

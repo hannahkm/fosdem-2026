@@ -18,15 +18,15 @@ Each scenario can be run multiple times and are, by default, sent to DataDog.
 
 ### Scenario Requirements
 
-| Scenario | Go Version | Environment | Notes |
-|----------|-----------|-------------|-------|
-| default | 1.25.x | Any | No instrumentation |
-| manual | 1.25.x | Any | Manual OTel SDK |
-| obi | 1.25.x | Linux | Requires eBPF |
-| ebpf | 1.25.x | Linux | Requires eBPF |
-| orchestrion | 1.25.x | Any | Compile-time injection |
-| libstabst | **1.23.x** | **Linux** | salp library incompatible with Go 1.25.x |
-| usdt | Custom fork | Linux | Requires Linux kernel with USDT support |
+| Scenario    | Go Version  | Environment | Notes                                    |
+| ----------- | ----------- | ----------- | ---------------------------------------- |
+| default     | 1.25.x      | Any         | No instrumentation                       |
+| manual      | 1.25.x      | Any         | Manual OTel SDK                          |
+| obi         | 1.25.x      | Linux       | Requires eBPF                            |
+| ebpf        | 1.25.x      | Linux       | Requires eBPF                            |
+| orchestrion | 1.25.x      | Any         | Compile-time injection                   |
+| libstabst   | **1.23.x**  | **Linux**   | salp library incompatible with Go 1.25.x |
+| usdt        | Custom fork | Linux       | Requires Linux kernel with USDT support  |
 
 **Notes:**
 
