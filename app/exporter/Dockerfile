@@ -20,7 +20,13 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o bpftrace-exporter ./app/exporter/cmd/
 
 # Final image with bpftrace
-FROM quay.io/iovisor/bpftrace:latest
+# Use Debian instead of iovisor image for multi-arch support (arm64 + amd64)
+FROM debian:bookworm-slim
+
+# Install bpftrace from Debian repos (available for both amd64 and arm64)
+RUN apt-get update && apt-get install -y \
+    bpftrace \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the exporter binary
 COPY --from=builder /build/bpftrace-exporter /usr/local/bin/

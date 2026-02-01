@@ -9,40 +9,46 @@
  */
 
 // HTTP server request lifecycle
-usdt::go:http_server_request_start
+// Provider: net_http (from Go fork's net/http instrumentation)
+// Note: Argument parsing disabled due to bpftrace compatibility issues with ARM64 USDT args
+usdt::net_http:server_request_start
 {
-    printf("{\"event\":\"http_request_start\",\"method\":\"%s\",\"path\":\"%s\",\"timestamp\":%lld}\n",
-           str(arg0), str(arg1), nsecs);
+    printf("{\"event\":\"http_request_start\",\"timestamp\":%lld}\n", nsecs);
 }
 
-usdt::go:http_server_request_end
+usdt::net_http:server_request_end
 {
-    printf("{\"event\":\"http_request_end\",\"method\":\"%s\",\"path\":\"%s\",\"status\":%d,\"duration\":%lld}\n",
-           str(arg0), str(arg1), arg2, arg3);
+    printf("{\"event\":\"http_request_end\",\"timestamp\":%lld}\n", nsecs);
 }
 
-// Network dial operations
-usdt::go:net_dial_start
+// Network connection events
+// Provider: net
+usdt::net:conn_accept
 {
-    printf("{\"event\":\"net_dial_start\",\"network\":\"%s\",\"address\":\"%s\",\"timestamp\":%lld}\n",
-           str(arg0), str(arg1), nsecs);
+    printf("{\"event\":\"net_conn_accept\",\"timestamp\":%lld}\n", nsecs);
 }
 
-usdt::go:net_dial_end
+usdt::net:conn_close
 {
-    printf("{\"event\":\"net_dial_end\",\"network\":\"%s\",\"address\":\"%s\",\"duration\":%lld,\"error\":%d}\n",
-           str(arg0), str(arg1), arg2, arg3);
+    printf("{\"event\":\"net_conn_close\",\"timestamp\":%lld}\n", nsecs);
 }
 
 // TLS handshake operations
-usdt::go:tls_handshake_start
+// Provider: tls
+// Arguments for handshake_start: -1@w3
+usdt::tls:handshake_start
 {
-    printf("{\"event\":\"tls_handshake_start\",\"server_name\":\"%s\",\"timestamp\":%lld}\n",
-           str(arg0), nsecs);
+    printf("{\"event\":\"tls_handshake_start\",\"timestamp\":%lld}\n", nsecs);
 }
 
-usdt::go:tls_handshake_end
+// Arguments for handshake_end: -1@w6
+usdt::tls:handshake_end
 {
-    printf("{\"event\":\"tls_handshake_end\",\"server_name\":\"%s\",\"duration\":%lld,\"error\":%d}\n",
-           str(arg0), arg1, arg2);
+    printf("{\"event\":\"tls_handshake_end\",\"timestamp\":%lld}\n", nsecs);
+}
+
+// Arguments for handshake_error: -1@w1
+usdt::tls:handshake_error
+{
+    printf("{\"event\":\"tls_handshake_error\",\"error\":%d,\"timestamp\":%lld}\n", arg0, nsecs);
 }

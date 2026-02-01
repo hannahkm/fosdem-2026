@@ -132,9 +132,66 @@ curl http://localhost:8080/load
 - `Dockerfile` - Multi-stage build from Go fork
 - `README.md` - This documentation
 - `exporter/` - bpftrace to OTel exporter bridge
-  - `Dockerfile` - bpftrace + exporter image
-  - `main.go` - OTel export bridge
-  - `trace-json.bt` - bpftrace script for stdlib probes
+    - `Dockerfile` - bpftrace + exporter image
+    - `main.go` - OTel export bridge
+    - `trace-json.bt` - bpftrace script for stdlib probes
+
+## Known Issues
+
+### Go Fork Build "STALE Targets" Error
+
+When building the USDT fork, you may see:
+
+```text
+STALE cmd/go: not installed but available in build cache
+```
+
+**This is a false positive.** The binaries ARE built successfully despite the error. Known issue: [golang/go#70873](https://github.com/golang/go/issues/70873)
+
+**Workaround:** The Dockerfile uses `./make.bash || true` and verifies the binary exists.
+
+### ARM64 USDT Argument Parsing
+
+On ARM64 systems, bpftrace 0.17.0 cannot parse USDT argument formats like `8@x5 -8@x6`.
+
+**Error:**
+
+```text
+ERROR: couldn't get argument 0 for :net_http:server_request_start
+```
+
+Known issue: [bpftrace#2061](https://github.com/iovisor/bpftrace/issues/2061)
+
+**Current state:** Probes fire but argument values (method, path, duration) cannot be extracted. Events are captured with timestamps only.
+
+**Workarounds:**
+
+1. Build bpftrace from source (newer versions have better ARM64 support)
+2. Modify Go fork to emit simpler argument specs
+3. Use probe fires only (timing data without method/path details)
+
+### Probe Name Mismatch
+
+The Go fork emits probes with provider names like `net_http:server_request_start` (not `go:http_server_request_start`). The bpftrace scripts have been updated to match.
+
+### Testing with Lima VM
+
+For proper USDT testing on macOS:
+
+```bash
+limactl shell usdt-test
+cd ~/Workspace/Projects/Open-Source/Misc/fosdem-2026-go
+go run . run --scenario usdt --num 1
+```
+
+### Testing Status
+
+| Environment | Build | Probes Fire | Arguments Parsed |
+|-------------|-------|-------------|------------------|
+| Docker Desktop (macOS ARM64) | Works | Works | **Fails** |
+| Native Linux (x86_64) | Works | Works | Works |
+| Native Linux (ARM64) | Works | Works | **Fails** |
+| Lima VM (ARM64) | Works | Works | **Fails** |
 
 ## Limitations
 
@@ -143,6 +200,7 @@ curl http://localhost:8080/load
 3. Privileged container needed for bpftrace attachment
 4. Kernel 4.14+ required for uprobe support
 5. Build time significantly longer (compiles Go from source)
+6. **ARM64 argument parsing broken** in bpftrace 0.17.0 (see Known Issues)
 
 ## References
 

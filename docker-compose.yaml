@@ -1,4 +1,4 @@
-libnetworks:
+networks:
   fosdem2026:
     external: true
     name: fosdem2026

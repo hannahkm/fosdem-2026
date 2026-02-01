@@ -23,8 +23,12 @@ RUN git clone --branch poc_usdt --depth 1 \
     https://github.com/kakkoyun/go.git /go-src
 
 WORKDIR /go-src/src
-# Work around stale targets issue in CI environments
-RUN GOMAXPROCS=1 GODEBUG=gocachehash=1 ./make.bash
+# The Go fork triggers a false-positive "stale targets" error in make.bash
+# but the binaries ARE built successfully. See: https://github.com/golang/go/issues/70873
+# We ignore the exit code and verify the binary exists instead.
+ENV HOME=/root
+RUN ./make.bash || true
+RUN test -x /go-src/bin/go && /go-src/bin/go version
 
 # Stage 2: Build application with custom Go
 FROM debian:bookworm

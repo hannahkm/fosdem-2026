@@ -1,4 +1,6 @@
-ARG runtime_version
+# NOTE: salp library requires Go <= 1.23.x due to generics compatibility issues
+# with newer Go versions (1.25+). Override runtime_version if needed.
+ARG runtime_version=1.23.6
 FROM golang:${runtime_version}-bookworm
 
 # Install libstapsdt and dependencies
@@ -10,6 +12,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install libstapsdt from source
+# NOTE: libstapsdt uses memfd_create + dlopen("/proc/<pid>/fd/<fd>") which fails
+# in Docker Desktop on macOS. Works on native Linux or Lima VM.
+# See README.md "Known Issues" for workarounds.
 RUN git clone https://github.com/sthima/libstapsdt.git /tmp/libstapsdt && \
     cd /tmp/libstapsdt && \
     make && \

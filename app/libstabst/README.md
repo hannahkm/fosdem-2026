@@ -132,12 +132,79 @@ USDT shines when you need:
 - Minimal overhead when not actively tracing
 - Custom trace points in your application
 
+## Known Issues
+
+### Docker Desktop on macOS - Probe Initialization Failure
+
+The [libstapsdt](https://github.com/sthima/libstapsdt) library creates USDT probes by:
+
+1. Generating an ELF shared object in memory using `memfd_create()`
+2. Loading it via `dlopen("/proc/<pid>/fd/<fd>")`
+
+This fails in Docker Desktop with error:
+
+```text
+Warning: Failed to load USDT provider: libstapsdt error [2]: failed to open shared library '/proc/<pid>/fd/3': No such file or directory
+```
+
+**Workarounds attempted (none worked):**
+
+- `--security-opt seccomp=unconfined`
+- `--security-opt apparmor=unconfined`
+- `--pid=host`
+- Disabling memfd in libstapsdt (compile-time)
+
+**Root cause:** Docker Desktop on macOS runs containers in a Linux VM where `/proc/<pid>/fd/` paths don't resolve correctly for memfd file descriptors.
+
+**Recommended:** Use native Linux or Lima VM for testing.
+
+### salp Library Go Version Compatibility
+
+The [salp](https://github.com/mmcshane/salp) library has generics compatibility issues with Go 1.25+:
+
+```text
+cannot define new methods on non-local type Provider
+```
+
+**Workaround:** The Dockerfile defaults to Go 1.23.6.
+
+### Testing with Lima VM
+
+For proper USDT testing on macOS:
+
+```bash
+# Create VM (one-time)
+limactl create --name=usdt-test template://ubuntu
+
+# Start and enter VM
+limactl start usdt-test
+limactl shell usdt-test
+
+# Install dependencies
+sudo apt-get update && sudo apt-get install -y bpftrace golang libelf-dev build-essential
+
+# Navigate to project (lima auto-mounts home)
+cd ~/Workspace/Projects/Open-Source/Misc/fosdem-2026-go
+
+# Run scenario
+go run . run --scenario libstabst --num 1
+```
+
+### Testing Status
+
+| Environment | Build | Probe Init | Tracing |
+|-------------|-------|------------|---------|
+| Docker Desktop (macOS) | Works | **Fails** | N/A |
+| Native Linux | Works | Works | Works |
+| Lima VM | Works | Works | Works |
+
 ## Limitations
 
 1. Requires privileged container for bpftrace
 2. Linux-only (uses libstapsdt)
 3. Needs kernel support for uprobes (kernel 4.14+)
 4. Manual probe point placement in code
+5. **Does not work in Docker Desktop on macOS** (see Known Issues)
 
 ## References
 

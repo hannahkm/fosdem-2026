@@ -319,11 +319,21 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		}
 	}
 
-	if opts.Inputs.RuntimeVersion != "" {
-		buildArgs["runtime_version"] = opts.Inputs.RuntimeVersion
-	} else {
-		buildArgs["runtime_version"] = "1.25.5"
-		log.Warn("no runtime version specified, using default", "version", "1.25.5")
+	// Skip runtime_version for scenarios that manage their own Go versions
+	// - libstabst: requires Go <= 1.23.x for salp library compatibility
+	// - usdt: uses custom Go fork with native USDT support
+	scenariosWithOwnGoVersion := map[string]bool{
+		"libstabst": true,
+		"usdt":      true,
+	}
+
+	if !scenariosWithOwnGoVersion[scenario] {
+		if opts.Inputs.RuntimeVersion != "" {
+			buildArgs["runtime_version"] = opts.Inputs.RuntimeVersion
+		} else {
+			buildArgs["runtime_version"] = "1.25.5"
+			log.Warn("no runtime version specified, using default", "version", "1.25.5")
+		}
 	}
 
 	// Build the Dockerfile for the given scenario
@@ -360,6 +370,14 @@ func buildGoEnvironment(ctx context.Context, opts *RunManyOpts, scenario string)
 		PortBindings: nat.PortMap{
 			nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: strconv.Itoa(port)}},
 		},
+	}
+
+	// libstabst scenario needs special security options for libstapsdt to work.
+	// NOTE: This doesn't fully fix the issue on Docker Desktop (macOS) - see README.md.
+	// libstapsdt uses memfd_create + dlopen("/proc/<pid>/fd/<fd>") which fails
+	// due to /proc access restrictions in Docker Desktop's Linux VM.
+	if scenario == "libstabst" {
+		hostCfg.SecurityOpt = []string{"seccomp=unconfined", "apparmor=unconfined"}
 	}
 
 	if scenario != "default" {
