@@ -140,10 +140,6 @@ FOSDEM 2026
 
 **Does any of this matter anymore?**
 
-AI writes all our code now anyway...
-
-<!-- TODO: Add AI joke/meme image here -->
-
 ---
 
 <!-- _class: vcenter invert -->
@@ -480,7 +476,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 - Happens at runtime
 - Sometimes causes source code changes
-- Meh with compiler languages like Go
+- Meh with compiled languages like Go, C++, etc.
 
 </div>
 
@@ -490,7 +486,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 - Happens at... compile time
 - (Before run time)
-- Works great with compiler languages like Go
+- Works great with compiled languages like Go, C++, etc.
 
 </div>
 
@@ -551,7 +547,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 - Happens at runtime (surprised???)
 - Sometimes causes source code changes
-- Meh with compiler languages like Go
+- Meh with compiled languages like Go, C++, etc.
 
 </div>
 
@@ -561,7 +557,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 
 - Happens at... compile time
 - (Before run time)
-- Works great with compiler languages like Go
+- Works great with compiled languages like Go, C++, etc.
 
 </div>
 
@@ -1110,9 +1106,10 @@ orchestrion go build -o myapp .
     * OTel Collector
     * Jaeger (traces)
     * Prometheus (metrics)
+    * k6 Load Testing
 
 * Identical hardware allocation per scenario
-* 5-minute sustained load tests
+* 8-minute sustained load tests
 
 ---
 
@@ -1266,13 +1263,25 @@ orchestrion go build -o myapp .
 **It depends on your use case!**
 
 eBPF/OBI: Great for RUNTIME FLEXIBILITY
-Orchestrion: Great for STABILITY AND SECURITY
+Compile-time: Great for STABILITY AND SECURITY
+
+---
+
+# More about eBPF Instrumentation
+
+![](./assets/donia.png)
+
+---
+
+# More about eBPF Instrumentation
+
+![](./assets/usama.png)
 
 ---
 
 <!-- _class: vcenter invert -->
 
-# The Future: Proof of Concepts
+# The Future: Experimental (brittle)
 
 ---
 
@@ -1340,44 +1349,7 @@ graph LR
 
 <!-- _class: vcenter -->
 
-# PoC: Native USDT in Go Fork
-
-```go
-import "runtime/trace/usdt"
-
-func handleRequest(w http.ResponseWriter, r *http.Request) {
-    usdt.Probe("myapp", "request_start")
-    defer usdt.Probe1("myapp", "request_end", int32(w.StatusCode))
-    // ... handle request
-}
-```
-
-Stdlib auto-instrumented: `net/http`, `database/sql`, `crypto/tls`, `net`
-
----
-
-<!-- _class: vcenter -->
-
-# PoC: Native USDT - Tooling
-
-```bash
-# List probes in binary
-$ go tool usdt list ./myserver
-PROVIDER   NAME                  ADDRESS     ARGUMENTS
-net_http   server_request_start  0x63296c    8@%rsi -8@%r8
-
-# Generate bpftrace script
-$ go tool usdt bpftrace ./myserver > trace.bt
-$ sudo bpftrace trace.bt
-```
-
-[github.com/kakkoyun/go/tree/poc_usdt](https://github.com/kakkoyun/go/tree/poc_usdt)
-
----
-
-<!-- _class: vcenter -->
-
-# PoC: Frida Dynamic Instrumentation
+# PoC: Injection-based Dynamic Instrumentation (using Frida)
 
 **Runtime function hooking via ptrace**
 
@@ -1393,16 +1365,23 @@ Interceptor.attach(Module.findExportByName(null,
 
 * No code changes, works with any existing binary
 * Requires `-gcflags="all=-N -l"` (disable optimizations)
+* It is not available for 1.22+
 
 ---
 
 <!-- _class: vcenter -->
 
-# Frida: Challenges with Go
+# Injection: Challenges in Go
 
 ![width:700](./assets/quarkuslab_injector.png)
 
 Based on [Quarkslab research](https://blog.quarkslab.com/lets-go-into-the-rabbit-hole-part-1-the-challenges-of-dynamically-hooking-golang-program.html)
+
+---
+
+<!-- _class: vcenter invert -->
+
+# The Future: Proof of Concepts
 
 ---
 
@@ -1435,11 +1414,63 @@ defer flight.Flush()  // Export on error/crash
 
 ---
 
+<!-- _class: vcenter -->
+
+# PoC: Native USDT in Go Fork (Future Vision)
+
+```go
+import "runtime/trace/usdt"
+
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+    usdt.Probe("myapp", "request_start")
+    defer usdt.Probe1("myapp", "request_end", int32(w.StatusCode))
+    // ... handle request
+}
+```
+
+Stdlib auto-instrumented: `net/http`, `database/sql`, `crypto/tls`, `net`
+
+---
+
+<!-- _class: vcenter -->
+
+# PoC: Native USDT - Tooling
+
+```bash
+# List probes in binary
+$ go tool usdt list ./myserver
+PROVIDER   NAME                  ADDRESS     ARGUMENTS
+net_http   server_request_start  0x63296c    8@%rsi -8@%r8
+
+# Generate bpftrace script
+$ go tool usdt bpftrace ./myserver > trace.bt
+$ sudo bpftrace trace.bt
+```
+
+---
+
+<!-- _class: vcenter -->
+
+[github.com/kakkoyun/go/tree/poc_usdt](https://github.com/kakkoyun/go/tree/poc_usdt)
+
+![width:900](./assets/go_poc_usdt.png)
+
+---
+
 # Final thoughts
 
 1) Instrumentation is helpful and important
-2) Auto-instrumentation is EASY
-3) What are YOU going to do next?
+2) Auto-instrumentation is POSSIBLE
+3) ...with trade-offs!
+
+---
+
+# You can contribute today!
+
+1. OTel OBI SIG
+2. OTel Compile-time SIG
+3. OTel Injector
+4. Go runtime!
 
 ---
 
