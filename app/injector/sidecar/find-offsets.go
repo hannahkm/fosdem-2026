@@ -11,7 +11,7 @@ import (
 
 func main() {
 	req := &http.Request{}
-	
+
 	fmt.Println("=== http.Request struct offsets for Go", runtime.Version(), "===")
 	fmt.Printf("Method offset:     %d bytes\n", unsafe.Offsetof(req.Method))
 	fmt.Printf("URL offset:        %d bytes\n", unsafe.Offsetof(req.URL))
@@ -20,7 +20,7 @@ func main() {
 	fmt.Printf("Body offset:       %d bytes\n", unsafe.Offsetof(req.Body))
 	fmt.Printf("RequestURI offset: %d bytes\n", unsafe.Offsetof(req.RequestURI))
 	fmt.Printf("Host offset:       %d bytes\n", unsafe.Offsetof(req.Host))
-	
+
 	fmt.Println("\n=== Go string representation ===")
 	fmt.Printf("String size: %d bytes (pointer + length)\n", unsafe.Sizeof(""))
 	fmt.Printf("Pointer size: %d bytes\n", unsafe.Sizeof(uintptr(0)))

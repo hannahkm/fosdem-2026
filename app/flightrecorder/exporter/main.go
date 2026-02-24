@@ -81,7 +81,7 @@ func main() {
 	otel.SetTracerProvider(tp)
 
 	// Create trace directory if it doesn't exist
-	if err := os.MkdirAll(traceDir, 0755); err != nil {
+	if err := os.MkdirAll(traceDir, 0o755); err != nil {
 		log.Fatalf("Failed to create trace directory: %v", err)
 	}
 

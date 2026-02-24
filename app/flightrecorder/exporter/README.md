@@ -150,7 +150,7 @@ Each span includes:
 ### Error Handling
 
 - Continues processing on individual file errors
-- Logs warnings for unparseable files
+- Logs warnings for unparsable files
 - Marks unclosed spans with error status
 - Graceful shutdown on SIGTERM/SIGINT
 

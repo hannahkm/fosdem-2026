@@ -1,6 +1,7 @@
 ---
 marp: true
-theme: rose-pine
+theme: datadog
+# theme: rose-pine
 # theme: rose-pine-dawn
 # theme: rose-pine-moon
 math: mathjax
@@ -130,7 +131,7 @@ style: |
 
 Hannah Kim, Kemal Akkoyun
 
-FOSDEM 2026
+APM SDK Summit 2026
 
 ---
 
@@ -792,7 +793,7 @@ graph TB
 # obi-config.yaml
 open_port: 8080
 service:
-    name: fosdem-obi
+    name: demo-obi
 log_level: debug
 
 otel_traces_export:
@@ -1081,8 +1082,6 @@ orchestrion go build -o myapp .
 * **Metrics**: CPU, Memory, Latency (p50/p95/p99), Error rate
 * **Application**: Same Go HTTP server across all scenarios
 
-> Detailed methodology in our FOSDEM Software Performance Devroom talk
-
 ---
 
 <!-- _class: vcenter -->
@@ -1157,7 +1156,7 @@ orchestrion go build -o myapp .
 
 | Approach           | CPU | Memory (RSS) | Max Latency | Max Throughput |
 | ------------------ | --- | ------ | -------- | ---------- |
-| Baseline           | 10.2%  | 202 MiB  |  4.50 ms | 3.1k req/sec  | 
+| Baseline           | 10.2%  | 202 MiB  |  4.50 ms | 3.1k req/sec  |
 | Manual             | 10.3% (+0.1%)    |  210 MiB (+8 MiB)  |  3.02 ms (-1.48 ms)  | 13.97k req/sec (+10.87k req/sec) |
 | Auto (eBPF)        |  10% (-0.3%)   | 204 MiB (+2 MiB)   | 3.07 ms (-1.43 ms) | 4.57k req/sec (+1.47k req/sec) |
 | Auto (toolchain)   |  9.8% (-0.4%)   | 210 (+8 MiB)  | 2.59 ms (-1.91 ms)  | 27.8k req/sec (+24.7k req/sec) |
@@ -1267,18 +1266,6 @@ Compile-time: Great for STABILITY AND SECURITY
 
 ---
 
-# More about eBPF Instrumentation
-
-![](./assets/donia.png)
-
----
-
-# More about eBPF Instrumentation
-
-![](./assets/usama.png)
-
----
-
 <!-- _class: vcenter invert -->
 
 # The Future: Experimental (brittle)
@@ -1293,9 +1280,9 @@ Compile-time: Great for STABILITY AND SECURITY
 
 ```go
 // Compile-time probes - zero overhead when disabled
-probe.Fire("fosdem:request_start", requestID, timestamp)
+probe.Fire("myapp:request_start", requestID, timestamp)
 // ... handle request ...
-probe.Fire("fosdem:request_end", requestID, timestamp, duration)
+probe.Fire("myapp:request_end", requestID, timestamp, duration)
 ```
 
 * Uses `salp` library (Go bindings to libstapsdt)
@@ -1310,7 +1297,7 @@ probe.Fire("fosdem:request_end", requestID, timestamp, duration)
 
 ```mermaid
 graph LR
-    app[Go App<br/>with USDT probes] --> probes[fosdem:request_*]
+    app[Go App<br/>with USDT probes] --> probes[myapp:request_*]
     probes --> bpftrace[bpftrace<br/>sidecar]
     bpftrace --> exporter[OTLP<br/>Exporter]
     exporter --> collector[OTel<br/>Collector]
