@@ -14,5 +14,7 @@ MD025: false  # Multiple top-level headings in the same document
 MD029: false  # Ordered list item prefix - Marp uses 1) for fragmented lists, 1. for normal
 MD033: false  # Inline HTML - required by Marp
 MD036: false  # Emphasis as heading - used for subtitles
+MD026: false  # Trailing punctuation in headings - normal in presentations (e.g. "Actually...", "Contribute today!")
 MD040: false  # Fenced code language - diagrams don't need language
+MD045: false  # Image alt text - Marp uses alt field for sizing directives (e.g. ![height:450px])
 MD060: false  # Table column style - presentation tables

@@ -1082,7 +1082,6 @@ orchestrion go build -o myapp .
 * **Metrics**: CPU, Memory, Latency (p50/p95/p99), Error rate
 * **Application**: Same Go HTTP server across all scenarios
 
-
 ---
 
 <!-- _class: vcenter -->

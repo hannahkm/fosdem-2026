@@ -34,10 +34,10 @@ serve: html
 	python -m http.server 8000
 
 lint/md:
-	npx markdownlint-cli2 "**/*.md" "#node_modules" "#experiments"
+	npx markdownlint-cli2 "**/*.md" "#node_modules" "#experiments" "#app" "#tmp"
 
 fix/md:
-	npx markdownlint-cli2 --fix "**/*.md" "#node_modules" "#experiments"
+	npx markdownlint-cli2 --fix "**/*.md" "#node_modules" "#experiments" "#app" "#tmp"
 
 format/md:
 	npx prettier --write "*.md"
